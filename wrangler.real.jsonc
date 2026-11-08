@@ -3,47 +3,40 @@
   "name": "family-holiday-special",
   "main": "src/server/index.ts",
   "compatibility_date": "2026-11-07",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": [
-      "/api/*",
-      "/s/*"
-    ]
+    "run_worker_first": ["/api/*", "/s/*"],
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "family-holiday-special",
       "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
-    }
+      "migrations_dir": "migrations",
+    },
   ],
   "r2_buckets": [
     {
       "binding": "MEDIA",
-      "bucket_name": "family-holiday-special-private"
-    }
+      "bucket_name": "family-holiday-special-private",
+    },
   ],
   "workflows": [
     {
       "binding": "PRODUCTION",
       "name": "family-holiday-production",
-      "class_name": "ProductionWorkflow"
-    }
+      "class_name": "ProductionWorkflow",
+    },
   ],
   "triggers": {
-    "crons": [
-      "*/15 * * * *"
-    ]
+    "crons": ["*/15 * * * *"],
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 0.1
+    "head_sampling_rate": 0.1,
   },
   "vars": {
     "MODE": "real",
@@ -72,33 +65,32 @@
     "ASSET_SIGNING_KEY_VERSION": "1",
     "REVIEW_ENABLED": "false",
     "PROVIDER_OUTPUT_HOSTS": "fal.media",
-    "PRICE_CONFIG_VERIFIED": "false"
+    "PRICE_CONFIG_VERIFIED": "false",
+    "PROCESSING_COST_USD": "",
   },
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
   },
   "containers": [
     {
       "class_name": "MediaContainer",
       "image": "./renderer/Dockerfile",
       "max_instances": 2,
-      "instance_type": "standard-2"
-    }
+      "instance_type": "standard-2",
+    },
   ],
   "durable_objects": {
     "bindings": [
       {
         "name": "RENDERER",
-        "class_name": "MediaContainer"
-      }
-    ]
+        "class_name": "MediaContainer",
+      },
+    ],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": [
-        "MediaContainer"
-      ]
-    }
-  ]
+      "new_sqlite_classes": ["MediaContainer"],
+    },
+  ],
 }
