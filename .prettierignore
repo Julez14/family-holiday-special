@@ -1,0 +1,7 @@
+node_modules
+dist
+.wrangler
+public
+worker-configuration.d.ts
+real-configuration.d.ts
+package-lock.json
