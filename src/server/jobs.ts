@@ -11,6 +11,14 @@ import { usdMicros } from '../shared/policies';
 import { illustrativePreviews } from './env';
 import { authorizedDevGeneration } from './dev-operator';
 export const jobs = new Hono<{ Bindings: AppEnv }>();
+async function startProduction(env: AppEnv, projectId: string, workflowId: string) {
+  try {
+    await env.PRODUCTION.create({ id: workflowId, params: { projectId } });
+  } catch {
+    // A duplicate or lost create receipt never changes the logical instance ID.
+    // The persisted queued row remains the scheduled outbox's responsibility.
+  }
+}
 jobs.post('/projects/:id/generate', async (c) => {
   const p = await owned(c);
   const body = generateSchema.parse(await c.req.json());
@@ -18,8 +26,10 @@ jobs.post('/projects/:id/generate', async (c) => {
   if (!key || !/^[a-zA-Z0-9-]{16,80}$/.test(key))
     throw new AppError(400, 'idempotency', 'A valid generation key is required.');
   if (p.state !== 'draft') {
-    if (p.idempotency_key === key && p.workflow_id)
+    if (p.idempotency_key === key && p.workflow_id) {
+      if (p.state === 'queued') await startProduction(c.env, p.id, p.workflow_id);
       return c.json({ projectId: p.id, jobId: p.workflow_id }, 202);
+    }
     throw new AppError(409, 'immutable', 'This cartoon already has a generation job.');
   }
   draft(p);
@@ -105,11 +115,7 @@ jobs.post('/projects/:id/generate', async (c) => {
     throw new AppError(409, 'revision', 'This setup changed. Reload it before generating.');
   }
   // Persisted queued rows are an outbox: scheduled reconciliation starts a missing instance.
-  try {
-    await c.env.PRODUCTION.create({ id: workflowId, params: { projectId: p.id } });
-  } catch {
-    /* The create outcome may be unknown. Never create a new logical instance ID. */
-  }
+  await startProduction(c.env, p.id, workflowId);
   await recordEvent(c.env, 'generation_requested', p.id, p.preset);
   return c.json({ projectId: p.id, jobId: workflowId }, 202);
 });

@@ -172,7 +172,21 @@ export async function inspect(
     }),
   );
   await settle(env, reservation);
-  if (!r.ok) throw new ArtifactFailure('technical');
+  if (!r.ok) {
+    const diagnostic = (await r.json().catch(() => ({}))) as { category?: string };
+    const infrastructure = [
+      'HTTPError',
+      'URLError',
+      'TimeoutError',
+      'ConnectionError',
+      'FileNotFoundError',
+      'JSONDecodeError',
+      'BodyFramingError',
+    ];
+    if (r.status >= 500 || r.status === 429 || infrastructure.includes(diagnostic.category ?? ''))
+      throw new AppError(503, 'processing', 'Native media inspection is temporarily unavailable.');
+    throw new ArtifactFailure('technical');
+  }
   const result = (await r.json()) as Inspection;
   if (
     !result.width ||
@@ -381,7 +395,9 @@ export async function produceArtifact(
                   .split(',')
                   .map((s) => s.trim()),
               ),
-              { redirect: 'error', signal: AbortSignal.timeout(30000) },
+              // The edge runtime supports manual/follow; manual also keeps redirects
+              // from escaping the verified provider-host allowlist.
+              { redirect: 'manual', signal: AbortSignal.timeout(30000) },
             );
           if (!response.ok) return { category: 'technical' };
           const mime = media.kind === 'video' ? 'video/mp4' : 'image/png';
@@ -410,7 +426,7 @@ export async function produceArtifact(
                 assetId,
               ).run();
             } catch (e) {
-              if (e instanceof AppError && e.code === 'budget') throw e;
+              if (e instanceof AppError && ['budget', 'processing'].includes(e.code)) throw e;
               return { category: 'technical' };
             }
           }

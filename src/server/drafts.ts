@@ -218,6 +218,20 @@ drafts.put('/projects/:id/uploads/:ticket', async (c) => {
         }),
       );
       await settle(c.env, reservation);
+      if (normalized.status >= 500 || normalized.status === 429) {
+        console.warn(
+          JSON.stringify({
+            event: 'native_processing_unavailable',
+            operation: 'normalize',
+            status: normalized.status,
+          }),
+        );
+        throw new AppError(
+          503,
+          'processing',
+          'Photo processing is warming up. Try again in a moment.',
+        );
+      }
       if (!normalized.ok)
         throw new AppError(
           422,

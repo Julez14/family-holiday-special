@@ -12,6 +12,48 @@ from PIL import Image
 from media import normalize, inspect, render, end_card
 warnings.simplefilter('error', Image.DecompressionBombWarning)
 
+
+def read_body(stream, headers, limit):
+    """Bound both fixed-length and chunked requests forwarded by a Worker."""
+    encoding = headers.get('Transfer-Encoding', '').lower()
+    length = headers.get('Content-Length')
+    if encoding:
+        if encoding != 'chunked' or length is not None:
+            raise ValueError('Ambiguous body framing')
+        body = bytearray()
+        while True:
+            line = stream.readline(128)
+            token = line.split(b';', 1)[0].strip()
+            if not line.endswith(b'\r\n') or not token or any(c not in b'0123456789abcdefABCDEF' for c in token):
+                raise ValueError('Invalid chunk size')
+            size = int(token, 16)
+            if size == 0:
+                trailer_bytes = 0
+                while True:
+                    trailer = stream.readline(8193)
+                    trailer_bytes += len(trailer)
+                    if trailer_bytes > 8192 or not trailer.endswith(b'\r\n'):
+                        raise ValueError('Invalid chunk trailer')
+                    if trailer == b'\r\n':
+                        break
+                break
+            if len(body) + size > limit:
+                raise ValueError('Request is too large')
+            chunk = stream.read(size)
+            if len(chunk) != size or stream.read(2) != b'\r\n':
+                raise ValueError('Truncated chunk')
+            body.extend(chunk)
+        if not body:
+            raise ValueError('Empty request')
+        return bytes(body)
+    size = int(length or '0')
+    if not 0 < size <= limit:
+        raise ValueError('Invalid request size')
+    body = stream.read(size)
+    if len(body) != size:
+        raise ValueError('Truncated request')
+    return body
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         raise ValueError('Redirects are not allowed')
@@ -31,7 +73,10 @@ def fetch(url, destination, origin=None, maximum=60*1024*1024):
     except ValueError as error:
         if str(error) == 'Private addresses are not allowed':
             raise
-    with build_opener(NoRedirect()).open(Request(url), timeout=30) as response, destination.open('wb') as file:
+    # Identify this first-party renderer explicitly. Generic Python-urllib requests
+    # to the hosted Worker can be rejected before reaching its signed asset route.
+    request = Request(url, headers={'User-Agent': 'FamilyHolidayRenderer/1.0'})
+    with build_opener(NoRedirect()).open(request, timeout=30) as response, destination.open('wb') as file:
         size = 0
         while chunk := response.read(128*1024):
             size += len(chunk)
@@ -57,10 +102,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             limit = 15*1024*1024 if self.path == '/normalize' else 64*1024
-            length = int(self.headers.get('Content-Length', '0'))
-            if not 0 < length <= limit:
-                raise ValueError('Invalid request size')
-            data = self.rfile.read(length)
+            data = read_body(self.rfile, self.headers, limit)
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)
                 if self.path == '/normalize':
@@ -85,8 +127,18 @@ class Handler(BaseHTTPRequestHandler):
                 music = root / 'music.wav'; fetch(body['music'],music,body['origin'],30*1024*1024)
                 output = root / 'output.mp4'; render(clips,portraits,music,output,root)
                 self.reply(output.read_bytes(),'video/mp4')
-        except Exception:
-            self.reply(b'{"error":"Media validation or rendering failed"}', 'application/json',422)
+        except Exception as error:
+            # Categories only: exceptions may contain signed URLs or private paths.
+            category = type(error).__name__
+            upstream_status = getattr(error, 'code', None)
+            diagnostic = {'event': 'native_media_failed', 'operation': self.path,
+                          'category': category,
+                          'upstream_status': upstream_status if isinstance(upstream_status, int) else None,
+                          'chunked': self.headers.get('Transfer-Encoding', '').lower() == 'chunked',
+                          'has_content_length': self.headers.get('Content-Length') is not None}
+            print(json.dumps(diagnostic), flush=True)
+            self.reply(json.dumps({'error': 'Media validation or rendering failed',
+                                   'category': category}).encode(), 'application/json',422)
 
 if __name__ == '__main__':
     HTTPServer(('0.0.0.0',8080),Handler).serve_forever()
