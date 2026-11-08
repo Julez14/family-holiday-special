@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run build && wrangler dev --port 8787 --local-protocol https",
+    "dev": "vite --mode live",
+    "dev:mock": "npm run build && wrangler dev --port 8787 --local-protocol https",
     "build": "vite build",
     "types": "wrangler types --strict-vars false && wrangler types real-configuration.d.ts --config wrangler.real.jsonc --env-interface RealEnv --include-runtime false --strict-vars false && wrangler types dev-configuration.d.ts --config wrangler.dev.jsonc --env-interface DevEnv --include-runtime false --strict-vars false",
     "typecheck": "tsc --noEmit",
@@ -44,6 +45,7 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.2.1",
     "miniflare": "^5.20261104.0-beta",
     "prettier": "^3.9.10",

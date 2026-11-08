@@ -9,7 +9,7 @@ import { AppError } from './errors';
 import { realReady } from './budget';
 import { usdMicros } from '../shared/policies';
 import { illustrativePreviews } from './env';
-import { authorizedDevGeneration } from './dev-operator';
+import { authorizedDevGeneration, authorizedLocalDevRequest } from './dev-operator';
 export const jobs = new Hono<{ Bindings: AppEnv }>();
 async function startProduction(env: AppEnv, projectId: string, workflowId: string) {
   try {
@@ -55,7 +55,10 @@ jobs.post('/projects/:id/generate', async (c) => {
       'This cast exceeds the demo’s configured spending limit. Your setup is saved.',
     );
   if (c.env.MODE === 'real') {
-    if (!(await authorizedDevGeneration(c.env, p.id, key, c.req.raw.headers))) {
+    if (
+      !(await authorizedLocalDevRequest(c.env, c.req.raw)) &&
+      !(await authorizedDevGeneration(c.env, p.id, key, c.req.raw.headers))
+    ) {
       const form = new FormData();
       form.set('secret', c.env.TURNSTILE_SECRET!);
       form.set('response', body.turnstileToken ?? '');

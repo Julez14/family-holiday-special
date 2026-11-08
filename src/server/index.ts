@@ -13,10 +13,26 @@ import { signingKey, illustrativePreviews } from './env';
 import { project } from './db';
 import { getPreset } from '../shared/presets';
 import { cleanup } from './cleanup';
+import { authorizedLocalDevRequest, localBackendOnly } from './dev-operator';
 export { ProductionWorkflow, ProductionWorkflow as LiveProductionWorkflow } from './workflow';
 export { MediaContainer } from './container';
 const app = new Hono<{ Bindings: AppEnv }>();
 app.use('*', async (c, next) => {
+  if (localBackendOnly(c.env)) {
+    const path = c.req.path;
+    if (!path.startsWith('/api/') && !path.startsWith('/s/'))
+      return c.redirect(
+        'PUBLIC_APP_ORIGIN' in c.env ? c.env.PUBLIC_APP_ORIGIN : c.env.APP_ORIGIN,
+        302,
+      );
+    const publicEndpoint =
+      path === '/api/health' ||
+      path === '/api/fal/webhook' ||
+      path.startsWith('/api/inference/') ||
+      path.startsWith('/s/');
+    if (!publicEndpoint && !(await authorizedLocalDevRequest(c.env, c.req.raw)))
+      throw new AppError(403, 'local_dev', 'Use the local development app to access this backend.');
+  }
   if (
     ['POST', 'PATCH', 'PUT', 'DELETE'].includes(c.req.method) &&
     c.req.path.startsWith('/api/') &&
@@ -36,13 +52,14 @@ app.use('*', async (c, next) => {
   if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/s/'))
     c.header('Cache-Control', 'private, no-store');
 });
-app.get('/api/config', (c) =>
+app.get('/api/config', async (c) =>
   c.json({
     mode: c.env.MODE,
     generationEnabled: c.env.MODE === 'mock' || c.env.PAID_GENERATION_ENABLED === 'true',
     previewMode: illustrativePreviews(c.env) ? 'illustrative' : 'generated',
     releaseChannel: 'RELEASE_CHANNEL' in c.env ? c.env.RELEASE_CHANNEL : 'main',
     turnstileSiteKey: 'TURNSTILE_SITE_KEY' in c.env ? c.env.TURNSTILE_SITE_KEY : null,
+    localOperatorAccess: await authorizedLocalDevRequest(c.env, c.req.raw),
     maxPeople: 6,
   }),
 );

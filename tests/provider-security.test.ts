@@ -4,6 +4,50 @@ import { verifyFalSignature, outputUrl, falInput, FalQueue } from '../src/server
 import { sign, verifyHmac, sha256 } from '../src/server/crypto';
 import { validateDescriptions } from '../src/server/descriptions';
 import { AppError, workflowAppErrorCode } from '../src/server/errors';
+import { authorizedLocalDevRequest } from '../src/server/dev-operator';
+import { localDevMessage } from '../src/shared/local-dev';
+
+it('limits local proxy credentials to real dev, exact requests and fresh timestamps', async () => {
+  const secret = 'dev-only-test-secret'.repeat(4);
+  const env = {
+    MODE: 'real',
+    RELEASE_CHANNEL: 'dev',
+    LOCAL_DEV_ONLY: 'true',
+    DEV_OPERATOR_SECRET: secret,
+  } as AppEnv;
+  const time = String(Math.floor(Date.now() / 1000));
+  const path = '/api/projects/example?version=1';
+  const headers = {
+    'X-Dev-Local-Time': time,
+    'X-Dev-Local-Signature': await sign(secret, localDevMessage('GET', path, time)),
+  };
+  const request = new Request(`https://dev.test${path}`, { headers });
+  expect(await authorizedLocalDevRequest(env, request)).toBe(true);
+  expect(
+    await authorizedLocalDevRequest(
+      env,
+      new Request('https://dev.test/api/projects/other', { headers }),
+    ),
+  ).toBe(false);
+  expect(
+    await authorizedLocalDevRequest(
+      env,
+      new Request(`https://dev.test${path}`, { method: 'DELETE', headers }),
+    ),
+  ).toBe(false);
+  expect(await authorizedLocalDevRequest(env, request, Date.now() + 61000)).toBe(false);
+  expect(await authorizedLocalDevRequest({ ...env, MODE: 'mock' } as AppEnv, request)).toBe(false);
+  expect(
+    await authorizedLocalDevRequest({ ...env, RELEASE_CHANNEL: 'main' } as AppEnv, request),
+  ).toBe(false);
+  expect(
+    await authorizedLocalDevRequest({ ...env, LOCAL_DEV_ONLY: 'false' } as AppEnv, request),
+  ).toBe(false);
+  expect(
+    await authorizedLocalDevRequest({ ...env, DEV_OPERATOR_SECRET: 'wrong'.repeat(16) }, request),
+  ).toBe(false);
+  expect(await authorizedLocalDevRequest(env, new Request(request.url))).toBe(false);
+});
 
 it('preserves known failure categories across serialized Workflow step errors', () => {
   expect(workflowAppErrorCode(new AppError(503, 'processing', 'Unavailable.'))).toBe('processing');

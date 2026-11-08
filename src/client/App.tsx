@@ -34,6 +34,7 @@ interface Config {
   releaseChannel: string;
   generationEnabled: boolean;
   turnstileSiteKey: string | null;
+  localOperatorAccess: boolean;
 }
 const toInput = (c: Character): CharacterInput => ({
   id: c.id,
@@ -922,7 +923,7 @@ export default function App() {
                       uploading ||
                       !!busyIds.length ||
                       config?.generationEnabled === false ||
-                      (config?.mode === 'real' && !turnstileToken)
+                      (config?.mode === 'real' && !config.localOperatorAccess && !turnstileToken)
                     }
                     onClick={() => void generate()}
                   >
@@ -935,9 +936,11 @@ export default function App() {
                     <ArrowRight size={17} />
                   </button>
                 </div>
-                {config?.mode === 'real' && config.turnstileSiteKey && (
-                  <Turnstile siteKey={config.turnstileSiteKey} onToken={setTurnstileToken} />
-                )}
+                {config?.mode === 'real' &&
+                  !config.localOperatorAccess &&
+                  config.turnstileSiteKey && (
+                    <Turnstile siteKey={config.turnstileSiteKey} onToken={setTurnstileToken} />
+                  )}
                 <p className="generation-note">
                   {config?.mode === 'mock'
                     ? 'Demo mode creates an illustrative fixture, not a likeness of your uploaded cast.'

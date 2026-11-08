@@ -11,6 +11,7 @@ if (!statusOnly && !process.argv.includes('--allow-paid'))
     'Pass --allow-paid to explicitly start paid inference, or --status to inspect an existing job.',
   );
 await mkdir(folder, { recursive: true });
+const operatorSecret = (await readFile('.wrangler/dev-operator-secret', 'utf8')).trim();
 let state;
 try {
   state = JSON.parse(await readFile(`${folder}/state.json`, 'utf8'));
@@ -20,6 +21,8 @@ try {
 }
 const save = () => writeFile(`${folder}/state.json`, JSON.stringify(state), { mode: 0o600 });
 async function call(path, { method = 'GET', body, headers = {} } = {}) {
+  const url = new URL(path, origin);
+  const time = String(Math.floor(Date.now() / 1000));
   const result = await fetch(new URL(path, origin), {
     method,
     body,
@@ -28,6 +31,10 @@ async function call(path, { method = 'GET', body, headers = {} } = {}) {
       cookie: state.cookie,
       ...(typeof body === 'string' ? { 'content-type': 'application/json' } : {}),
       ...headers,
+      'X-Dev-Local-Time': time,
+      'X-Dev-Local-Signature': createHmac('sha256', operatorSecret)
+        .update(`local-dev-v1:${method}:${url.pathname + url.search}:${time}`)
+        .digest('hex'),
     },
     signal: AbortSignal.timeout(180000),
   });

@@ -8,7 +8,7 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/s/*"],
+    "run_worker_first": true,
   },
   "d1_databases": [
     {
@@ -77,6 +77,8 @@
     "PROCESSING_COST_USD": "0.02",
     "RELEASE_CHANNEL": "dev",
     "PREVIEW_MODE": "illustrative",
+    "LOCAL_DEV_ONLY": "true",
+    "PUBLIC_APP_ORIGIN": "https://family-holiday-special.juelzlax.workers.dev",
   },
   "ai": {
     "binding": "AI",
