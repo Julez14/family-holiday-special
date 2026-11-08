@@ -3,7 +3,6 @@ import type { AppEnv } from './env';
 import { statement, project, type AttemptRow, type AssetRow } from './db';
 import { FalQueue, SubmissionUnknown, ProviderRejected, outputUrl, type MediaInput } from './fal';
 import { reserve, settle, realReady } from './budget';
-import { inferenceUrl } from './media';
 import { usdMicros, RETRY_CAPS, canRepair } from '../shared/policies';
 import { sha256 } from './crypto';
 import { PROMPT_VERSION, reviewSchema } from '../shared/contracts';
@@ -164,11 +163,19 @@ export async function inspect(
   if (!('RENDERER' in env)) throw new ArtifactFailure('technical');
   const reservation = `inspect:${crypto.randomUUID()}`;
   await reserve(env, projectId, reservation, usdMicros(env.PROCESSING_COST_USD));
+  const media = await asset(env, assetId);
+  if (media.project_id !== projectId) throw new ArtifactFailure('technical');
+  const object = await env.MEDIA.get(media.r2_key);
+  if (!object) throw new ArtifactFailure('technical');
   const r = await env.RENDERER.getByName('media-0').fetch(
     new Request('http://renderer/inspect', {
       method: 'POST',
-      body: JSON.stringify({ url: await inferenceUrl(env, projectId, assetId), video }),
-      headers: { 'content-type': 'application/json' },
+      body: object.body,
+      headers: {
+        'content-type': 'application/octet-stream',
+        'content-length': String(object.size),
+        'x-media-kind': video ? 'video' : 'image',
+      },
     }),
   );
   await settle(env, reservation);

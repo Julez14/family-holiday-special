@@ -1,16 +1,28 @@
 """Binding-only HTTP service. Native codecs never execute in a Worker request."""
-import io
-import ipaddress
 import json
+import re
+import shutil
 import tempfile
+import uuid
 import warnings
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
-from urllib.request import Request, build_opener, HTTPRedirectHandler
 from PIL import Image
 from media import normalize, inspect, render, end_card
 warnings.simplefilter('error', Image.DecompressionBombWarning)
+STAGING_ROOT = Path(tempfile.mkdtemp(prefix='holiday-staged-'))
+
+
+def session_root(session):
+    if str(uuid.UUID(session)) != session:
+        raise ValueError('Invalid staging session')
+    return STAGING_ROOT / session
+
+
+def stage_file(session, name):
+    if not re.fullmatch(r'(clip-[0-3]\.mp4|portrait-[0-5]\.png|music\.wav)', name):
+        raise ValueError('Invalid staged file')
+    return session_root(session) / name
 
 
 def read_body(stream, headers, limit):
@@ -54,36 +66,6 @@ def read_body(stream, headers, limit):
         raise ValueError('Truncated request')
     return body
 
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, *args, **kwargs):
-        raise ValueError('Redirects are not allowed')
-
-
-def fetch(url, destination, origin=None, maximum=60*1024*1024):
-    parsed = urlparse(url)
-    if parsed.scheme != 'https' or parsed.username or parsed.password or not parsed.path.startswith('/api/inference/'):
-        raise ValueError('Only scoped app references are allowed')
-    if origin and f'{parsed.scheme}://{parsed.netloc}' != origin:
-        raise ValueError('Foreign reference origin')
-    if parsed.hostname in ('localhost','metadata.google.internal'):
-        raise ValueError('Local host is not allowed')
-    try:
-        if not ipaddress.ip_address(parsed.hostname).is_global:
-            raise ValueError('Private addresses are not allowed')
-    except ValueError as error:
-        if str(error) == 'Private addresses are not allowed':
-            raise
-    # Identify this first-party renderer explicitly. Generic Python-urllib requests
-    # to the hosted Worker can be rejected before reaching its signed asset route.
-    request = Request(url, headers={'User-Agent': 'FamilyHolidayRenderer/1.0'})
-    with build_opener(NoRedirect()).open(request, timeout=30) as response, destination.open('wb') as file:
-        size = 0
-        while chunk := response.read(128*1024):
-            size += len(chunk)
-            if size > maximum:
-                raise ValueError('Reference is too large')
-            file.write(chunk)
-
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass  # never log scoped URLs, request bodies or source data
@@ -97,34 +79,57 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers(); self.wfile.write(data)
 
     def do_GET(self):
-        self.reply(b'{"ok":true}', 'application/json', 200 if self.path == '/health' else 404)
+        self.reply(b'{"ok":true,"inputMode":"r2-stream-v1"}', 'application/json', 200 if self.path == '/health' else 404)
+
+    def do_DELETE(self):
+        try:
+            parts = self.path.split('/')
+            if len(parts) != 3 or parts[1] != 'stage':
+                raise ValueError('Invalid cleanup request')
+            shutil.rmtree(session_root(parts[2]), ignore_errors=True)
+            self.reply(b'{"ok":true}', 'application/json')
+        except ValueError:
+            self.reply(b'{"error":"Invalid cleanup request"}', 'application/json', 422)
 
     def do_POST(self):
         try:
-            limit = 15*1024*1024 if self.path == '/normalize' else 64*1024
+            parts = self.path.split('/')
+            staging = len(parts) == 4 and parts[1] == 'stage'
+            staged = stage_file(parts[2], parts[3]) if staging else None
+            video = self.headers.get('X-Media-Kind') == 'video'
+            if self.path == '/normalize' or (self.path == '/inspect' and not video):
+                limit = 15*1024*1024
+            elif self.path == '/inspect' or staging:
+                limit = 60*1024*1024 if video or (staging and parts[3].startswith('clip-')) else 30*1024*1024
+            else:
+                limit = 64*1024
             data = read_body(self.rfile, self.headers, limit)
+            if staged:
+                staged.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                staged.write_bytes(data)
+                self.reply(b'{"ok":true}', 'application/json'); return
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)
                 if self.path == '/normalize':
                     crop = json.loads(self.headers['X-Crop']) if self.headers.get('X-Crop') else None
                     output, size = normalize(data, crop)
                     self.reply(output, 'image/jpeg', extra={'X-Width':size[0], 'X-Height':size[1]}); return
-                body = json.loads(data)
                 if self.path == '/inspect':
-                    file = root / 'input'; fetch(body['url'], file)
-                    self.reply(json.dumps(inspect(file, body['video'])).encode(), 'application/json'); return
-                if self.path not in ('/render','/poster') or body['version'] != 'ffmpeg-v1' or not 1 <= len(body['portraits']) <= 6 or len(body['clips']) != 4:
+                    if self.headers.get('X-Media-Kind') not in ('image', 'video'):
+                        raise ValueError('Invalid inspection kind')
+                    file = root / 'input'; file.write_bytes(data)
+                    self.reply(json.dumps(inspect(file, video)).encode(), 'application/json'); return
+                body = json.loads(data)
+                count = body.get('portraitCount')
+                if self.path not in ('/render','/poster') or body['version'] != 'ffmpeg-v1' or body.get('inputMode') != 'r2-stream-v1' or type(count) is not int or not 1 <= count <= 6:
                     raise ValueError('Invalid render contract')
-                portraits = []
-                for i, url in enumerate(body['portraits']):
-                    path = root / f'portrait-{i}.png'; fetch(url,path,body['origin'],15*1024*1024); portraits.append(path)
+                root = session_root(body['session'])
+                portraits = [stage_file(body['session'], f'portrait-{i}.png') for i in range(count)]
                 if self.path == '/poster':
                     poster = root / 'poster.png'; end_card(portraits,poster)
                     self.reply(poster.read_bytes(),'image/png'); return
-                clips = []
-                for i, url in enumerate(body['clips']):
-                    path = root / f'clip-{i}.mp4'; fetch(url,path,body['origin']); clips.append(path)
-                music = root / 'music.wav'; fetch(body['music'],music,body['origin'],30*1024*1024)
+                clips = [stage_file(body['session'], f'clip-{i}.mp4') for i in range(4)]
+                music = stage_file(body['session'], 'music.wav')
                 output = root / 'output.mp4'; render(clips,portraits,music,output,root)
                 self.reply(output.read_bytes(),'video/mp4')
         except Exception as error:
