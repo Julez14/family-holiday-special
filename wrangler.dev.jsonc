@@ -27,8 +27,8 @@
   "workflows": [
     {
       "binding": "PRODUCTION",
-      "name": "family-holiday-production-dev",
-      "class_name": "ProductionWorkflow",
+      "name": "family-holiday-special-dev-production",
+      "class_name": "LiveProductionWorkflow",
     },
   ],
   "triggers": {
@@ -48,7 +48,7 @@
   },
   "vars": {
     "MODE": "real",
-    "PAID_GENERATION_ENABLED": "false",
+    "PAID_GENERATION_ENABLED": "true",
     "APP_ORIGIN": "https://family-holiday-special-dev.juelzlax.workers.dev",
     "CAMPAIGN_RETENTION_FLOOR": "2027-02-01T05:00:00Z",
     "MAX_PROJECTS_PER_DAY": "3",
@@ -87,6 +87,7 @@
       "image": "./renderer/Dockerfile",
       "max_instances": 2,
       "instance_type": "standard-2",
+      "rollout_step_percentage": 100,
     },
   ],
   "durable_objects": {

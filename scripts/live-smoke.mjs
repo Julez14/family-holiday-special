@@ -1,7 +1,7 @@
 // Explicitly paid, dev-only integration test using a code-drawn source portrait.
 // Usage: node scripts/live-smoke.mjs --allow-paid (then --status to resume polling).
 // State, owner cookie and resulting media stay under ignored .wrangler/live-smoke/.
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHmac, randomUUID } from 'node:crypto';
 const origin = 'https://family-holiday-special-dev.juelzlax.workers.dev';
 const folder = '.wrangler/live-smoke';
@@ -51,6 +51,22 @@ async function call(path, { method = 'GET', body, headers = {} } = {}) {
 const config = await (await call('/api/config')).json();
 if (config.mode !== 'real' || config.releaseChannel !== 'dev')
   throw new Error('Paid dev deployment required.');
+if (process.argv.includes('--fresh')) {
+  if (statusOnly) throw new Error('Use --fresh with --allow-paid, not --status.');
+  if (state.projectId) {
+    if (!/^[a-f0-9-]{36}$/.test(state.projectId)) throw new Error('Invalid saved project ID.');
+    const previous = await (await call(`/api/projects/${state.projectId}`)).json();
+    if (previous.state !== 'ready')
+      throw new Error('A fresh test requires the previous job to finish successfully.');
+    const archive = `${folder}/archive/${state.projectId}`;
+    await mkdir(archive, { recursive: true });
+    await writeFile(`${archive}/state.json`, JSON.stringify(state), { mode: 0o600 });
+    for (const name of ['video.mp4', 'poster.jpg'])
+      await copyFile(`${folder}/${name}`, `${archive}/${name}`);
+    state = { idempotencyKey: randomUUID(), cookie: state.cookie };
+    await save();
+  }
+}
 if (!statusOnly) {
   if (!state.projectId) {
     const p = await (await call('/api/projects', { method: 'POST', body: '{}' })).json();

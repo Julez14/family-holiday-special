@@ -22,7 +22,7 @@
     "test:scenarios": "npm run build && node scripts/check-scenarios.mjs",
     "format": "prettier --write src tests scripts *.ts *.json *.jsonc",
     "deploy:main": "npm run build && wrangler deploy --config wrangler.production.jsonc",
-    "deploy:dev": "npm run build && wrangler deploy --config wrangler.dev.jsonc",
+    "deploy:dev": "npm run build && wrangler deploy --config wrangler.dev.jsonc --containers-rollout=immediate",
     "music": "python3 scripts/build_music.py"
   },
   "dependencies": {
