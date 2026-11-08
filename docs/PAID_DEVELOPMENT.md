@@ -20,6 +20,8 @@ The owner enabled Workers Paid after the initial account-entitlement rejection. 
 
 Reservations are conservative planning allowances, not a provider invoice or an account-wide hard cap. The app enforces $20 per project, $40 per UTC day and two concurrent fal requests. Descriptions, native processing, repairs and unknown submissions also consume reservations. Uncertain submissions are never blindly resubmitted.
 
+Automatic descriptions allow 100 requests per dev project, shared across the cast. A batch counts as one request; an accepted request counts even if generation fails. Existing drafts gain the higher allowance without resetting their counters. The request cap has no daily reset, and the separate spending ceilings still apply.
+
 | Operation | Reserved USD per call |
 | --- | ---: |
 | GPT Image edit | 1.00 |

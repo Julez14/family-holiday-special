@@ -113,7 +113,7 @@ All prices are **conservative envelopes**, not measured billing. The example val
 | `PROCESSING_COST_USD` | One native normalization, crop or inspection HTTP call; retries reserve again |
 | `RENDER_COST_USD` | Entire bounded render envelope, including at most two render executions, internal clip checks and poster composition |
 | `MAX_PROVIDER_CONCURRENCY` | Account-wide active fal slots; unknown submissions keep their slot |
-| `MAX_DESCRIPTION_REQUESTS` | Description button requests per draft, initially 20 |
+| `MAX_DESCRIPTION_REQUESTS` | Description button requests per project: 100 in paid dev; 20 in mock and the production template |
 
 A single D1 statement atomically reserves spend against both ceilings. Reservations are idempotent by call/envelope ID. Unknown submissions retain reservations, and failures never trigger unlimited repair. At most two additional image attempts and one additional video attempt are allowed across a project, and a stricter money cap always wins. Fixed storage, bandwidth, database and unrelated provider-account activity are not an exact whole-account invoice cap.
 
