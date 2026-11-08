@@ -187,11 +187,13 @@ The style is fixed. Do not switch into photorealism, a 3D animated-film look, or
 
 ### A. Prepare source references
 
-Store each required individual source portrait and its generous head crop in private R2 storage. Include hair and relevant context rather than cropping tightly to eyes and mouth. Assign stable character IDs with a direct source-photo mapping. The individual portrait is the identity anchor; there is no group-source asset or multi-face extraction stage.
+Store each required individual source portrait and its generous head crop in private R2 storage. Include hair and relevant context rather than cropping tightly to eyes and mouth. Assign stable character IDs with a direct source-photo mapping. The confirmed crop is the source-photo identity anchor; there is no group-source asset or multi-face extraction stage.
+
+**Reference policy update — November 8, 2026:** Send only the confirmed generous head-and-shoulders crop to external generation providers as a source-photo reference. Never send the full uncropped source alongside it, including during scene-frame generation or automatic repairs. Keep the full source private for owner preview and recropping under the existing retention/deletion policy. Generated canonical cartoons, scene frames and clips may still be supplied to the later stages that need them. This changes reference selection, not moderation requirements; screening remains enabled.
 
 ### B. Create canonical cartoon cast
 
-Initially use `openai/gpt-image-2.6/flare/edit` on fal, subject to the comparison in [Model Selection Decisions](Model_Selection_Decisions.md), to generate one canonical waist-up cartoon portrait per person, with the shared style, the preset's wardrobe, and compatible costume/accessory details from their character description. Prefer a clean or transparent background to support the final cast composition. Keep originals associated with the character; a generated portrait must not become the only identity source.
+Initially use `openai/gpt-image-2.6/flare/edit` on fal, subject to the comparison in [Model Selection Decisions](Model_Selection_Decisions.md), to generate one canonical waist-up cartoon portrait per person, with the shared style, the preset's wardrobe, and compatible costume/accessory details from their character description. Prefer a clean or transparent background to support the final cast composition. Keep the private source mapping associated with the character; use the confirmed crop as the photographic reference so a generated portrait does not become the only identity source.
 
 Store the chosen portrait, custom/LLM-generated character description and its provenance, wardrobe description, source references, style version, and prompt version. Reuse the accepted portrait rather than regenerating it independently for every scene. Do not train a per-person model or LoRA for MVP.
 
@@ -203,7 +205,7 @@ Required invariants: exactly four moving shots; 1–2 cast IDs per shot; every s
 
 ### D. Generate starting frames
 
-Create one starting image per shot from the relevant original portraits and accepted cartoon looks. Include only references relevant to that shot. Explicitly map the order of references to character IDs in the provider adapter.
+Create one starting image per shot from the relevant confirmed cropped portraits and accepted cartoon looks. Include only references relevant to that shot. Explicitly map the order of references to character IDs in the provider adapter.
 
 Check image decoding, dimensions, and obvious composition/style problems before animating. A starting frame should establish the cast, face visibility, costume, and scene. No user approval is required per image.
 
@@ -453,3 +455,4 @@ The API capabilities below were checked on November 7, 2026. Endpoint access, pa
 - [S9 — MediaPipe Face Detector](https://developers.google.com/edge/mediapipe/solutions/vision/face_detector?tab=Web): browser face locations and landmarks used only to assist individual-portrait validation/framing; detections do not establish personal identity.
 - [S10 — Cloudflare Workers AI model catalog](https://developers.cloudflare.com/ai/models/) and [Workers AI changelog](https://developers.cloudflare.com/changelog/product/workers-ai/): select a currently supported lightweight text model and verify deprecation dates for character-description generation.
 - [S11 — Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/): Standard storage rates, free allowance, operation charges, and free egress; checked November 7, 2026.
+

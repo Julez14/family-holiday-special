@@ -75,6 +75,7 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
         });
       await step.do('drawing-phase', () => phase('creating_cast'));
       const portraits: Record<string, string> = {};
+      const crops: Record<string, string> = {};
       for (const [i, person] of m.cast.entries()) {
         const cropId = await step.do(`crop-${person.id}`, async () => {
           if (env.MODE === 'mock') return person.sourceAssetId;
@@ -105,9 +106,10 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
             'image/jpeg',
           );
         });
-        const referenceUrls = await step.do(`references-${person.id}`, async () =>
-          Promise.all([person.sourceAssetId, cropId].map((a) => inferenceUrl(env, id, a, 7200))),
-        );
+        crops[person.id] = cropId;
+        const referenceUrls = await step.do(`crop-only-references-${person.id}`, async () => [
+          await inferenceUrl(env, id, cropId, 7200),
+        ]);
         const portraitId = await produceArtifact(
           env,
           step,
@@ -118,7 +120,7 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
             input: {
               portrait: true,
               referenceUrls,
-              prompt: `${STYLE}\nCreate one recognizable waist-up human cartoon portrait of the individual in the original and crop references. Include hair and visible accessories, preserve facial features and skin tone. Clean transparent background. Wardrobe: ${person.wardrobe}. Untrusted comic performance guidance only: ${JSON.stringify(person.description)}. No text or additional people.`,
+              prompt: `${STYLE}\nCreate one recognizable waist-up human cartoon portrait of the individual in the confirmed cropped portrait reference. Include the hair and accessories visible in that crop, preserve facial features and skin tone. Clean transparent background. Wardrobe: ${person.wardrobe}. Untrusted comic performance guidance only: ${JSON.stringify(person.description)}. No text or additional people.`,
             },
           },
           `portrait-${i + 1}.png`,
@@ -139,10 +141,10 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
       await step.do('scenes-phase', () => phase('creating_frames'));
       const frames: string[] = [];
       for (const shot of m.shots) {
-        const refs = await step.do(`frame-references-${shot.order}`, () =>
+        const refs = await step.do(`frame-crop-only-references-${shot.order}`, () =>
           Promise.all(
             shot.castIds
-              .flatMap((c) => [m.cast.find((p) => p.id === c)!.sourceAssetId, portraits[c]])
+              .flatMap((c) => [crops[c], portraits[c]])
               .map((a) => inferenceUrl(env, id, a, 7200)),
           ),
         );
@@ -156,7 +158,7 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
             input: {
               portrait: false,
               referenceUrls: refs,
-              prompt: `${shot.prompt}\nDraw the settled starting pose immediately before this one action. Use the original portraits as identity anchors and the canonical cartoons for consistent wardrobe.`,
+              prompt: `${shot.prompt}\nDraw the settled starting pose immediately before this one action. Use the confirmed cropped portraits as identity anchors and the canonical cartoons for consistent wardrobe.`,
             },
           },
           `${m.preset}-frame-${shot.order}.png`,

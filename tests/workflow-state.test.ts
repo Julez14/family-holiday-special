@@ -354,3 +354,43 @@ it('stops native infrastructure failures without buying replacement images', asy
     vi.unstubAllGlobals();
   }
 });
+
+it('shares confirmed crops for inference but refuses full source photos even with a valid signature', async () => {
+  const { inferenceUrl, authorizedInference } = await import('../src/server/media');
+  const { sign } = await import('../src/server/crypto');
+  const live = {
+    ...env,
+    MODE: 'real',
+    APP_ORIGIN: 'https://studio.test',
+    ASSET_SIGNING_SECRET: 'x'.repeat(64),
+  } as AppEnv;
+  const now = Date.now();
+  for (const kind of ['source', 'crop', 'portrait', 'frame'] as const) {
+    await env.DB.prepare(
+      'INSERT INTO assets(id,project_id,kind,r2_key,mime,created_at,expires_at) VALUES(?,?,?,?,?,?,?)',
+    )
+      .bind(kind, id, kind, `${id}/${kind}`, 'image/jpeg', now, now + 86400000)
+      .run();
+  }
+  await expect(inferenceUrl(live, id, 'source')).rejects.toMatchObject({ code: 'reference' });
+  const expires = String(Math.floor(now / 1000) + 3600);
+  const signature = await sign(live.ASSET_SIGNING_SECRET!, `read:${id}:source:${expires}`);
+  await expect(authorizedInference(live, id, 'source', expires, signature)).rejects.toMatchObject({
+    code: 'reference',
+  });
+  for (const kind of ['crop', 'portrait', 'frame']) {
+    const url = new URL(await inferenceUrl(live, id, kind));
+    expect(
+      (
+        await authorizedInference(
+          live,
+          id,
+          kind,
+          url.searchParams.get('expires')!,
+          url.searchParams.get('signature')!,
+        )
+      ).kind,
+    ).toBe(kind);
+  }
+});
+

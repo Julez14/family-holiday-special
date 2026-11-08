@@ -46,7 +46,7 @@ Used for: one canonical cartoon portrait per person and one starting image per m
 
 We want control over appearance and composition before paying to animate a scene. Reference-image editing fits that pipeline. The documented endpoint accepts multiple reference images and offers explicit output dimensions, quality settings, and transparent-background output [1].
 
-Those controls let us provide original portraits, accepted cartoon looks, and style references together. Transparent or clean-background portraits also help assemble the final cast card without generating another group image.
+Those controls let us provide confirmed cropped portraits, accepted cartoon looks, and style references together. Transparent or clean-background portraits also help assemble the final cast card without generating another group image.
 
 This is a capability-fit decision, not proof that this model preserves likeness better than alternatives. The original source portrait stays associated with each character throughout the pipeline; generated references can introduce drift.
 
@@ -173,7 +173,7 @@ Provider pages establish exposed capabilities and published prices. They do not 
 
 Live fal schema retrieval confirmed these adapters for the initial implementation:
 
-- `openai/gpt-image-2.6/flare/edit`: `prompt`, `image_urls`, one PNG output, custom `image_size`, `background`, `quality`, and `enable_safety_checker=true`. Portraits request 768×1024 with transparency; scene images request 1280×720 with an opaque background. The source and crop remain associated with each character.
+- `openai/gpt-image-2.6/flare/edit`: `prompt`, `image_urls`, one PNG output, custom `image_size`, `background`, `quality`, and `enable_safety_checker=true`. Portraits request 768×1024 with transparency; scene images request 1280×720 with an opaque background. Only the confirmed crop is sent as the photographic reference; the full source stays private for recropping.
 - `minimax/h3-max/reference-to-video`: `prompt`, starting `image_url`, `reference_image_urls`, `duration=5`, `resolution="768P"`, `aspect_ratio="16:9"`, seed, and screening. The checked expansion value is **`prompt_expansion_mode="disabled"`**, not `off` and not a parameter copied from another video model. Expansion is disabled to preserve the constrained single-action direction.
 - Nano Banana 2.1 Edit and Kling 4.0 Reference-to-Video schemas were inspected as comparison candidates. Kling uses its own `start_image_url` / reference contract; it is not a drop-in model-name change. No quality, latency or cost comparison is claimed, and alternative production adapters are not enabled.
 - Cloudflare's current Gemma 4 page documents text and vision. The generated current Workers AI types confirm multimodal `image_url` content and Gemma-specific `chat_template_kwargs.enable_thinking`; short description/review calls disable thinking and skip special tokens. Description calls use bounded `max_completion_tokens`, JSON output and exact-ID validation, with one possible malformed-output repair. Real description calls passed in dev. Advisory vision remains disabled pending calibration; `uncertain` and reviewer errors do not cause paid repairs.

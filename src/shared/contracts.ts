@@ -102,7 +102,7 @@ export interface ProjectView {
   costEstimateUsd: number;
 }
 export const STYLE_VERSION = 'theatrical-2d-v1';
-export const PROMPT_VERSION = 'holiday-gags-v1';
+export const PROMPT_VERSION = 'holiday-gags-v2-crop-only';
 export const STYLE =
   'Looney Tunes animation style; original human characters, classic hand-drawn 2D theatrical cartoon, bold clean outlines, painted backgrounds, expressive silhouettes, bright festive colors, comic anticipation, squash and stretch. Preserve visible skin tones, distinctive hair, glasses, facial hair, facial proportions and accessories. No existing cartoon characters, brand marks, lettering, photorealism or 3D rendering.';
 

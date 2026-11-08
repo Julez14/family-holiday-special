@@ -9,6 +9,20 @@ export async function inferenceUrl(
   assetId: string,
   ttlSeconds = 3600,
 ) {
+  if (env.MODE === 'real') {
+    const asset = await statement(
+      env,
+      'SELECT kind FROM assets WHERE id=? AND project_id=?',
+      assetId,
+      projectId,
+    ).first<{ kind: string }>();
+    if (!asset || asset.kind === 'source')
+      throw new AppError(
+        403,
+        'reference',
+        'Only cropped portraits and generated assets can be shared for inference.',
+      );
+  }
   const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
   const signature = await sign(signingKey(env), `read:${projectId}:${assetId}:${expires}`);
   return `${env.APP_ORIGIN}/api/inference/${projectId}/${assetId}?expires=${expires}&signature=${signature}`;
@@ -36,6 +50,8 @@ export async function authorizedInference(
     Date.now(),
   ).first<AssetRow>();
   if (!a) throw new AppError(404, 'asset', 'This reference is unavailable.');
+  if (env.MODE === 'real' && a.kind === 'source')
+    throw new AppError(403, 'reference', 'Full source photos are not available for inference.');
   return a;
 }
 export async function serveAsset(
