@@ -1,0 +1,53 @@
+{
+  "name": "family-holiday-special",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && wrangler dev --port 8787 --local-protocol https",
+    "build": "vite build",
+    "types": "wrangler types --strict-vars false && wrangler types real-configuration.d.ts --config wrangler.real.jsonc --env-interface RealEnv --include-runtime false --strict-vars false",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:media": "renderer/.venv/bin/python -m unittest discover -s renderer -p \"test_*.py\" -v",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "check": "npm run typecheck && npm test && npm run build",
+    "fixtures": "renderer/.venv/bin/python scripts/build_fixtures.py",
+    "deploy:check": "wrangler deploy --dry-run",
+    "deploy:real": "npm run build && wrangler deploy --config wrangler.real.jsonc",
+    "postinstall": "node scripts/prepare-assets.mjs",
+    "db:e2e": "wrangler d1 migrations apply DB --local --persist-to .wrangler/e2e",
+    "dev:e2e": "npm run build && wrangler dev --port 8790 --local-protocol https --persist-to .wrangler/e2e --var APP_ORIGIN:https://localhost:8790 --var DAILY_BUDGET_USD:1000 --var MAX_NETWORK_PROJECTS_PER_DAY:1000",
+    "test:scenarios": "npm run build && node scripts/check-scenarios.mjs",
+    "format": "prettier --write src tests scripts *.ts *.json *.jsonc"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@mediapipe/tasks-vision": "1.2.2",
+    "hono": "^4.13.17",
+    "image-size": "^2.1.0",
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "miniflare": "^5.20261104.0-beta",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.158.0"
+  }
+}

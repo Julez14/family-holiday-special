@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env*
+!.env.example
+!.dev.vars.example
+playwright-report/
+test-results/
+renderer/.venv/
+__pycache__/
+*.pyc
+.DS_Store
+public/vendor/vision/

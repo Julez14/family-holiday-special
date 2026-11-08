@@ -1,0 +1,68 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "family-holiday-special",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/s/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "family-holiday-special",
+      "database_id": "local-family-holiday-special",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "family-holiday-special-private",
+    },
+  ],
+  "workflows": [
+    {
+      "binding": "PRODUCTION",
+      "name": "family-holiday-production",
+      "class_name": "ProductionWorkflow",
+    },
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": false },
+  },
+  "vars": {
+    "MODE": "mock",
+    "PAID_GENERATION_ENABLED": "false",
+    "APP_ORIGIN": "https://localhost:8787",
+    "CAMPAIGN_RETENTION_FLOOR": "2027-02-01T05:00:00Z",
+    "MAX_PROJECTS_PER_DAY": "20",
+    "MAX_NETWORK_PROJECTS_PER_DAY": "40",
+    "MAX_DESCRIPTION_REQUESTS": "20",
+    "MAX_JOB_COST_USD": "5",
+    "DAILY_BUDGET_USD": "20",
+    "MAX_PROVIDER_CONCURRENCY": "4",
+    "IMAGE_COST_USD": "0.25",
+    "VIDEO_COST_USD": "0.55",
+    "TEXT_COST_USD": "0.001",
+    "REVIEW_COST_USD": "0.002",
+    "RENDER_COST_USD": "0.05",
+    "TEXT_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "IMAGE_MODEL": "openai/gpt-image-2.6/flare/edit",
+    "VIDEO_MODEL": "minimax/h3-max/reference-to-video",
+    "PILOT_APPROVED": "false",
+    "MUSIC_CLEARED": "false",
+    "MOCK_SCENARIO": "success",
+    "PROCESSING_COST_USD": "0.005",
+  },
+}

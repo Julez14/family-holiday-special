@@ -1,0 +1,5 @@
+# Mock mode on localhost requires no secrets.
+# For real deployment, use wrangler secret put --config wrangler.real.jsonc.
+# FAL_KEY=
+# ASSET_SIGNING_SECRET=
+# TURNSTILE_SECRET=
