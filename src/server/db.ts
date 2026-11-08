@@ -151,6 +151,7 @@ export async function view(env: AppEnv, p: ProjectRow): Promise<ProjectView> {
       clipReady: !!s.clip_asset_id,
     })),
     error: p.state === 'failed' ? errorMessage(p.error_code) : undefined,
+    errorCode: p.state === 'failed' ? (p.error_code ?? undefined) : undefined,
     expiresAt: p.expires_at,
     videoUrl: render ? assetUrl(render.video_asset_id) : undefined,
     posterUrl: render ? assetUrl(render.poster_asset_id) : undefined,

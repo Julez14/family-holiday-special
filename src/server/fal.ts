@@ -4,6 +4,17 @@ import { signingKey } from './env';
 import { sign, sha256 } from './crypto';
 import { AppError } from './errors';
 import { boundedBody } from './media';
+import { providerFailureCategory, isModerationFailure } from '../shared/provider-errors';
+
+async function rejectionCategory(response: Response): Promise<string> {
+  try {
+    return providerFailureCategory(
+      JSON.parse(new TextDecoder().decode(await boundedBody(response, 64 * 1024))),
+    );
+  } catch {
+    return 'provider_rejected';
+  }
+}
 export interface ImageRequest {
   prompt: string;
   referenceUrls: string[];
@@ -31,6 +42,23 @@ export interface QueueProvider {
   }>;
 }
 export class SubmissionUnknown extends Error {}
+export async function callbackFailureCategory(
+  env: AppEnv,
+  model: string,
+  requestId: string,
+  payload: unknown,
+) {
+  const category = providerFailureCategory(payload);
+  if (isModerationFailure(category)) return category;
+  // Sparse/legacy callbacks may omit details. Read the original receipt only.
+  try {
+    const polled = await new FalQueue(env).poll(model, requestId);
+    if (polled.state === 'failed' && isModerationFailure(polled.category)) return polled.category!;
+  } catch {
+    /* A confirmed provider failure remains terminal. */
+  }
+  return 'provider_rejected';
+}
 export class ProviderRejected extends Error {
   constructor(public category: string) {
     super(category);
@@ -92,7 +120,7 @@ export class FalQueue implements QueueProvider {
       throw new SubmissionUnknown('Submission response was lost.');
     }
     if (response.status >= 400 && response.status < 500)
-      throw new ProviderRejected(response.status === 422 ? 'safety' : 'provider_rejected');
+      throw new ProviderRejected(await rejectionCategory(response));
     if (!response.ok) throw new SubmissionUnknown('Submission acceptance is unknown.');
     try {
       return receiptSchema.parse(
@@ -114,7 +142,10 @@ export class FalQueue implements QueueProvider {
     if (s.status !== 'COMPLETED') return { state: 'pending' as const, providerState: s.status };
     const result = await fetch(base, { headers, signal: AbortSignal.timeout(15000) });
     if (!result.ok)
-      return { state: 'failed' as const, category: result.status === 422 ? 'safety' : 'transient' };
+      return {
+        state: 'failed' as const,
+        category: result.status < 500 ? await rejectionCategory(result) : 'transient',
+      };
     return {
       state: 'completed' as const,
       providerState: s.status,

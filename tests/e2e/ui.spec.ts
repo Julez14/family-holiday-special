@@ -101,3 +101,39 @@ test('four individual portraits, manual framing fallback, editable cast, refresh
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Your family.');
   expect(errors).toEqual([]);
 });
+
+for (const code of ['content_policy_violation:model_moderated', 'model_moderated']) {
+  test(`clearly identifies a moderated cartoon (${code})`, async ({ page }) => {
+    const id = '71975bc9-e410-4ab9-b9d0-20ea28781fd1';
+    await page.route(`**/api/projects/${id}`, (route) =>
+      route.fulfill({
+        json: {
+          id,
+          state: 'failed',
+          revision: 1,
+          preset: 'giftwrap',
+          characters: [],
+          shots: [],
+          mode: 'real',
+          errorCode: code,
+          error: `The AI provider blocked a request through content screening (${code.replace(':', '; ')}). It did not identify the exact trigger. Your completed artwork is saved.`,
+          expiresAt: Date.now() + 86400000,
+          costEstimateUsd: 1,
+        },
+      }),
+    );
+    await page.goto(`/p/${id}`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Content screeningstopped this cartoon.',
+    );
+    await expect(page.getByText(/AI provider blocked a request/)).toContainText('model_moderated');
+    if (code.includes('content_policy_violation'))
+      await expect(page.getByText(/AI provider blocked a request/)).toContainText(
+        'content_policy_violation',
+      );
+    await expect(page.getByRole('button', { name: 'Start a new cartoon' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  });
+}

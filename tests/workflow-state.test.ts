@@ -8,6 +8,7 @@ import type { WorkflowStep } from 'cloudflare:workers';
 import { recordCallback } from '../src/server/webhook';
 import { cleanup } from '../src/server/cleanup';
 import type { MediaInput } from '../src/server/fal';
+import { project, view } from '../src/server/db';
 const mf = new Miniflare(
   convertV4MiniflareOptions({
     modules: true,
@@ -154,6 +155,45 @@ it('counts unknown submissions against concurrency and never reclaims a paid sub
   expect(await claimSubmission(env, b)).toBe(true);
   const c = await prepareAttempt(env, id, 'clip-3', 0, media);
   expect(await claimSubmission(env, c)).toBe(false);
+});
+
+it('durably stores only normalized callback moderation codes, including early and duplicate deliveries', async () => {
+  const a = await prepareAttempt(env, id, 'clip-1', 0, media);
+  await claimSubmission(env, a);
+  const callback = {
+    request_id: 'blocked-receipt',
+    status: 'ERROR' as const,
+    error: {
+      detail: [
+        {
+          type: 'content_policy_violation',
+          categories: ['model_moderated'],
+          msg: 'private text and signed URL',
+        },
+      ],
+    },
+  };
+  await recordCallback(env, a.id, callback);
+  await recordCallback(env, a.id, { ...callback, error: 'different duplicate' });
+  const saved = await env.DB.prepare('SELECT payload FROM webhook_inbox WHERE request_id=?')
+    .bind(callback.request_id)
+    .first<{ payload: string }>();
+  expect(JSON.parse(saved!.payload)).toEqual({
+    category: 'content_policy_violation:model_moderated',
+  });
+  expect(saved!.payload).not.toContain('private text');
+  const category = JSON.parse(saved!.payload).category;
+  await env.DB.prepare("UPDATE projects SET state='failed',error_code=? WHERE id=?")
+    .bind(category, id)
+    .run();
+  const response = await view(env, await project(env, id));
+  expect(response.errorCode).toBe('content_policy_violation:model_moderated');
+  expect(response.error).toContain('content_policy_violation; model_moderated');
+  expect(
+    await env.DB.prepare('SELECT request_id FROM attempts WHERE id=?')
+      .bind(a.id)
+      .first('request_id'),
+  ).toBe(callback.request_id);
 });
 it('enforces one video repair across all shots', async () => {
   await prepareAttempt(env, id, 'clip-1', 0, media);

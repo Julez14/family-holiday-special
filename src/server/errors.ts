@@ -28,6 +28,14 @@ export const errorMessage = (code: string | null) =>
       'This cartoon reached the demo’s spending limit. Your successful scenes have been saved.',
     safety:
       'The generation service couldn’t accept this request. Please start again with different photos or descriptions.',
+    content_policy_violation:
+      'The AI provider blocked a request through content screening (content_policy_violation). It did not identify the exact trigger. Your completed artwork is saved.',
+    model_moderated:
+      'The AI provider blocked a request through content moderation (model_moderated). It did not identify the exact trigger. Your completed artwork is saved.',
+    'content_policy_violation:model_moderated':
+      'The AI provider blocked a request through content screening (content_policy_violation; model_moderated). It did not identify the exact trigger. Your completed artwork is saved.',
+    provider_rejected:
+      'The generation provider rejected a request without a specific reason available. Your completed artwork is saved.',
     technical:
       'One scene couldn’t finish within the automatic recovery limit. Your completed artwork is saved.',
     submission_unknown:

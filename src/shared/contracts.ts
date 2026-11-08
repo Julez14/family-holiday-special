@@ -94,6 +94,7 @@ export interface ProjectView {
   shots: { id: string; order: number; frameUrl?: string; clipReady: boolean }[];
   mode: 'mock' | 'real';
   error?: string;
+  errorCode?: string;
   expiresAt: number;
   videoUrl?: string;
   posterUrl?: string;

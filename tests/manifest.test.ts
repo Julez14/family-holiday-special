@@ -59,7 +59,14 @@ it('rejects group/weak portraits and warns without fabricated identity scores', 
 });
 it('does not repair safety rejections, unknown submissions or exceed global repair caps', () => {
   expect(canRepair('video', 0, 'technical')).toBe(true);
-  for (const reason of ['safety', 'submission_unknown', 'budget'])
+  for (const reason of [
+    'safety',
+    'submission_unknown',
+    'budget',
+    'content_policy_violation',
+    'model_moderated',
+    'content_policy_violation:model_moderated',
+  ])
     expect(canRepair('video', 0, reason)).toBe(false);
   expect(canRepair('video', 1, 'technical')).toBe(false);
   expect(canRepair('image', 2, 'technical')).toBe(false);

@@ -26,6 +26,7 @@ import {
 import { PRESETS, getPreset } from '../shared/presets';
 import type { Character, CharacterInput, Crop, PresetId, ProjectView } from '../shared/contracts';
 import { api, ApiError } from './api';
+import { isModerationFailure } from '../shared/provider-errors';
 import { preparePortrait } from './portraits';
 import { CropDialog, type CropRequest } from './CropDialog';
 interface Config {
@@ -1137,9 +1138,19 @@ export default function App() {
               <Clapperboard size={16} /> A LITTLE STUDIO SNAG
             </div>
             <h1>
-              This take hit
-              <br />
-              <em>a snowdrift.</em>
+              {isModerationFailure(project.errorCode) ? (
+                <>
+                  Content screening
+                  <br />
+                  <em>stopped this cartoon.</em>
+                </>
+              ) : (
+                <>
+                  This take hit
+                  <br />
+                  <em>a snowdrift.</em>
+                </>
+              )}
             </h1>
             <p>{project.error}</p>
             <div className="cast-preview">

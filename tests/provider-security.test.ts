@@ -1,9 +1,85 @@
 import type { AppEnv } from '../src/server/env';
 import { it, expect, vi } from 'vitest';
-import { verifyFalSignature, outputUrl, falInput, FalQueue } from '../src/server/fal';
+import {
+  verifyFalSignature,
+  outputUrl,
+  falInput,
+  FalQueue,
+  callbackFailureCategory,
+} from '../src/server/fal';
 import { sign, verifyHmac, sha256 } from '../src/server/crypto';
 import { validateDescriptions } from '../src/server/descriptions';
-import { AppError, workflowAppErrorCode } from '../src/server/errors';
+import { AppError, workflowAppErrorCode, errorMessage } from '../src/server/errors';
+import { providerFailureCategory, isModerationFailure } from '../src/shared/provider-errors';
+
+const moderation = {
+  detail: [
+    {
+      type: 'content_policy_violation',
+      categories: ['model_moderated'],
+      msg: 'private provider text',
+    },
+  ],
+};
+it('classifies explicit moderation codes without inferring them from input or messages', () => {
+  expect(providerFailureCategory(moderation)).toBe('content_policy_violation:model_moderated');
+  expect(providerFailureCategory({ error: { code: 'model_moderated' } })).toBe('model_moderated');
+  expect(providerFailureCategory(null, JSON.stringify(moderation))).toBe(
+    'content_policy_violation:model_moderated',
+  );
+  expect(
+    providerFailureCategory({
+      detail: [{ type: 'invalid_image', msg: 'model_moderated' }],
+      input: { type: 'content_policy_violation' },
+    }),
+  ).toBe('provider_rejected');
+  expect(providerFailureCategory('Invalid status code: 422')).toBe('provider_rejected');
+  for (const code of [
+    'content_policy_violation',
+    'model_moderated',
+    'content_policy_violation:model_moderated',
+  ]) {
+    expect(isModerationFailure(code)).toBe(true);
+    expect(errorMessage(code)).toContain('AI provider blocked');
+    expect(errorMessage(code)).toContain('exact trigger');
+    expect(errorMessage(code)).not.toContain('private provider text');
+  }
+});
+
+it('preserves moderation on direct rejection and polling while keeping validation errors generic', async () => {
+  const queue = new FalQueue({
+    FAL_KEY: 'test',
+    APP_ORIGIN: 'https://studio.test',
+    ASSET_SIGNING_SECRET: 'x'.repeat(64),
+  } as AppEnv);
+  const fetchMock = vi.spyOn(globalThis, 'fetch');
+  try {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(moderation), { status: 422 }));
+    await expect(
+      queue.submit(
+        'openai/gpt-image-2.6/flare/edit',
+        { kind: 'image', input: { prompt: 'test', referenceUrls: [], portrait: true } },
+        'attempt',
+      ),
+    ).rejects.toMatchObject({ category: 'content_policy_violation:model_moderated' });
+    fetchMock.mockResolvedValueOnce(new Response('{"status":"COMPLETED"}'));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(moderation), { status: 422 }));
+    expect(await queue.poll('openai/gpt-image-2.6/flare/edit', 'known-receipt')).toMatchObject({
+      state: 'failed',
+      category: 'content_policy_violation:model_moderated',
+    });
+    fetchMock.mockResolvedValueOnce(new Response('{"status":"COMPLETED"}'));
+    fetchMock.mockResolvedValueOnce(
+      new Response('{"detail":[{"type":"invalid_image"}]}', { status: 422 }),
+    );
+    expect(await queue.poll('openai/gpt-image-2.6/flare/edit', 'known-receipt')).toMatchObject({
+      state: 'failed',
+      category: 'provider_rejected',
+    });
+  } finally {
+    fetchMock.mockRestore();
+  }
+});
 import { authorizedLocalDevRequest } from '../src/server/dev-operator';
 import { localDevMessage } from '../src/shared/local-dev';
 
@@ -158,6 +234,40 @@ it('keeps provider execution metrics distinct from observed queue timestamps', a
       providerState: 'COMPLETED',
       inferenceMs: 12500,
     });
+  } finally {
+    fetchMock.mockRestore();
+  }
+});
+
+it('recovers sparse callback moderation details using GETs on the same receipt, with no resubmission', async () => {
+  const env = { FAL_KEY: 'test' } as AppEnv;
+  const fetchMock = vi.spyOn(globalThis, 'fetch');
+  try {
+    expect(
+      await callbackFailureCategory(
+        env,
+        'openai/gpt-image-2.6/flare/edit',
+        'receipt',
+        JSON.stringify({ category: 'model_moderated' }),
+      ),
+    ).toBe('model_moderated');
+    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockResolvedValueOnce(new Response('{"status":"COMPLETED"}'));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(moderation), { status: 422 }));
+    expect(
+      await callbackFailureCategory(env, 'openai/gpt-image-2.6/flare/edit', 'receipt', 'null'),
+    ).toBe('content_policy_violation:model_moderated');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      fetchMock.mock.calls.every(
+        ([url, init]) =>
+          String(url).includes('/requests/receipt') && (!init?.method || init.method === 'GET'),
+      ),
+    ).toBe(true);
+    fetchMock.mockRejectedValueOnce(new Error('temporary outage'));
+    expect(
+      await callbackFailureCategory(env, 'openai/gpt-image-2.6/flare/edit', 'receipt', null),
+    ).toBe('provider_rejected');
   } finally {
     fetchMock.mockRestore();
   }

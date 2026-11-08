@@ -1,7 +1,14 @@
 import type { WorkflowStep } from 'cloudflare:workers';
 import type { AppEnv } from './env';
 import { statement, project, type AttemptRow, type AssetRow } from './db';
-import { FalQueue, SubmissionUnknown, ProviderRejected, outputUrl, type MediaInput } from './fal';
+import {
+  FalQueue,
+  SubmissionUnknown,
+  ProviderRejected,
+  outputUrl,
+  callbackFailureCategory,
+  type MediaInput,
+} from './fal';
 import { reserve, settle, realReady } from './budget';
 import { usdMicros, RETRY_CAPS, canRepair } from '../shared/policies';
 import { sha256 } from './crypto';
@@ -346,7 +353,17 @@ export async function produceArtifact(
           ).first<{ status: string; payload: string }>();
           if (inbox?.status === 'OK' && inbox.payload !== 'null')
             return { state: 'completed', payloadJson: inbox.payload };
-          if (inbox?.status === 'ERROR') return { state: 'failed', category: 'provider_rejected' };
+          if (inbox?.status === 'ERROR') {
+            return {
+              state: 'failed',
+              category: await callbackFailureCategory(
+                env,
+                row.model,
+                row.request_id,
+                inbox.payload,
+              ),
+            };
+          }
           // A missing callback queries the known request. It never submits replacement work.
           try {
             const polled = await new FalQueue(env).poll(row.model, row.request_id);

@@ -7,6 +7,7 @@ import { boundedBody } from './media';
 import { falKeys, verifyFalSignature } from './fal';
 import { statement, type AttemptRow } from './db';
 import { AppError } from './errors';
+import { providerFailureCategory } from '../shared/provider-errors';
 export const webhooks = new Hono<{ Bindings: AppEnv }>();
 export const callbackSchema = z.object({
   request_id: z.string().min(1).max(160),
@@ -41,7 +42,11 @@ export async function recordCallback(
       callback.request_id,
       attemptId,
       callback.status,
-      JSON.stringify(callback.payload ?? null),
+      JSON.stringify(
+        callback.status === 'ERROR'
+          ? { category: providerFailureCategory(callback.payload, callback.error) }
+          : (callback.payload ?? null),
+      ),
       Date.now(),
     ),
     statement(
