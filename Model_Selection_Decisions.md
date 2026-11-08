@@ -164,3 +164,29 @@ Provider pages establish exposed capabilities and published prices. They do not 
 7. [Cloudflare Workers AI changelog and model deprecation notice](https://developers.cloudflare.com/changelog/product/workers-ai/).
 8. [Moondream 3.1 on Workers AI](https://developers.cloudflare.com/workers-ai/models/moondream3.1-9B-A2B/).
 9. [MediaPipe Face Detector](https://developers.google.com/edge/mediapipe/solutions/vision/face_detector?tab=Web).
+
+## Implementation record — November 7, 2026
+
+**Evidence level: schemas and local software/media-contract tests. No real model generations or likeness benchmarks were run.** The initial four model types remain provisional. Permissioned cast photos, explicit real spending configuration, cleared music and representative generated samples were not supplied. Production generation stays disabled. Mock portraits and clips are original code-drawn fixtures and are never presented as generated likenesses.
+
+### Checked contracts
+
+Live fal schema retrieval confirmed these adapters for the initial implementation:
+
+- `openai/gpt-image-2.6/flare/edit`: `prompt`, `image_urls`, one PNG output, custom `image_size`, `background`, `quality`, and `enable_safety_checker=true`. Portraits request 768×1024 with transparency; scene images request 1280×720 with an opaque background. The source and crop remain associated with each character.
+- `minimax/h3-max/reference-to-video`: `prompt`, starting `image_url`, `reference_image_urls`, `duration=5`, `resolution="768P"`, `aspect_ratio="16:9"`, seed, and screening. The checked expansion value is **`prompt_expansion_mode="disabled"`**, not `off` and not a parameter copied from another video model. Expansion is disabled to preserve the constrained single-action direction.
+- Nano Banana 2.1 Edit and Kling 4.0 Reference-to-Video schemas were inspected as comparison candidates. Kling uses its own `start_image_url` / reference contract; it is not a drop-in model-name change. No quality, latency or cost comparison is claimed, and alternative production adapters are not enabled.
+- Cloudflare's current Gemma 4 page documents text and vision. The generated current Workers AI types confirm multimodal `image_url` content and Gemma-specific `chat_template_kwargs.enable_thinking`; short description/review calls disable thinking and skip special tokens. Description calls use bounded `max_completion_tokens`, JSON output and exact-ID validation, with one possible malformed-output repair. Advisory review is disabled by default pending calibration; `uncertain` and reviewer errors do not cause paid repairs. Real Workers AI calls remain untested with account credentials.
+- MediaPipe Tasks Vision is pinned to **1.2.2** with the versioned BlazeFace Short-Range float16/1 model and a verified checksum. Browser runtime unavailability has a tested, explicitly manual framing fallback. Real portrait detection performance across appearances remains a pilot task.
+
+### Renderer decision and measured local evidence
+
+The retrieved fal Compose schema exposes tracks with timestamp, duration and URL keyframes. It does not expose the complete source-audio removal, exact size/frame-rate/codec normalization and fade contract needed here. This is insufficient API-contract evidence to select it; no paid capability request was submitted. Select **one FFmpeg renderer in Cloudflare Containers** rather than assuming undocumented Compose controls or maintaining two renderers.
+
+The native renderer was exercised locally with four generated test clips containing a 440 Hz source tone and a separate selected 880 Hz test bed. The final file passed 20-second duration, 1280×720, 24 fps, H.264/yuv420p, one AAC stream, all-selected-character end-card composition and frame extraction checks. The unwanted tone's measured magnitude was below 1% of the selected tone. EXIF removal/orientation and decoded-dimension rejection also passed. These tests establish the local editing/audio contract; they establish no cartoon likeness or production music rights.
+
+Both Worker configurations bundle successfully in dry-run mode. The real-mode dry run used `--containers-rollout=none` because Docker is absent on the build machine. A Dockerfile with the `renderer/` build context and a Docker build check in CI are supplied. The Docker image and the real account's Container deployment have not been exercised locally.
+
+### What remains before selecting measured production defaults
+
+Run the three-shot, 2–3 permissioned-person proof, compare the selected image and video candidates on matched inputs, record request IDs/current quotes/actual-or-estimated spend and queue/execution latency, and run the five-cast-set human pilot. Record failures and recognition sample sizes in `docs/PILOT.md`. The quoted prices in the original record have not been re-established as actual account bills. Local mock prices are invented test values; real prices are deliberately blank and must be configured conservatively before paid execution.

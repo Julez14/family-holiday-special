@@ -18,7 +18,9 @@
     "deploy:real": "npm run build && wrangler deploy --config wrangler.real.jsonc",
     "postinstall": "node scripts/prepare-assets.mjs",
     "db:e2e": "wrangler d1 migrations apply DB --local --persist-to .wrangler/e2e",
-    "dev:e2e": "npm run build && wrangler dev --port 8790 --local-protocol https --persist-to .wrangler/e2e --var APP_ORIGIN:https://localhost:8790 --var DAILY_BUDGET_USD:1000 --var MAX_NETWORK_PROJECTS_PER_DAY:1000"
+    "dev:e2e": "npm run build && wrangler dev --port 8790 --local-protocol https --persist-to .wrangler/e2e --var APP_ORIGIN:https://localhost:8790 --var DAILY_BUDGET_USD:1000 --var MAX_NETWORK_PROJECTS_PER_DAY:1000",
+    "test:scenarios": "npm run build && node scripts/check-scenarios.mjs",
+    "format": "prettier --write src tests scripts *.ts *.json *.jsonc"
   },
   "dependencies": {
     "@cloudflare/containers": "^0.3.7",
