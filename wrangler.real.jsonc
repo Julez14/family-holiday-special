@@ -1,0 +1,104 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "family-holiday-special",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-07",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/s/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "family-holiday-special",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "family-holiday-special-private"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "PRODUCTION",
+      "name": "family-holiday-production",
+      "class_name": "ProductionWorkflow"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "vars": {
+    "MODE": "real",
+    "PAID_GENERATION_ENABLED": "false",
+    "APP_ORIGIN": "https://configure-your-domain.example",
+    "CAMPAIGN_RETENTION_FLOOR": "2027-02-01T05:00:00Z",
+    "MAX_PROJECTS_PER_DAY": "1",
+    "MAX_NETWORK_PROJECTS_PER_DAY": "40",
+    "MAX_DESCRIPTION_REQUESTS": "20",
+    "MAX_JOB_COST_USD": "",
+    "DAILY_BUDGET_USD": "",
+    "MAX_PROVIDER_CONCURRENCY": "4",
+    "IMAGE_COST_USD": "",
+    "VIDEO_COST_USD": "",
+    "TEXT_COST_USD": "",
+    "REVIEW_COST_USD": "",
+    "RENDER_COST_USD": "",
+    "TEXT_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "IMAGE_MODEL": "openai/gpt-image-2.6/flare/edit",
+    "VIDEO_MODEL": "minimax/h3-max/reference-to-video",
+    "PILOT_APPROVED": "false",
+    "MUSIC_CLEARED": "false",
+    "MOCK_SCENARIO": "success",
+    "TURNSTILE_SITE_KEY": "",
+    "FAL_WEBHOOK_USER_ID": "",
+    "ASSET_SIGNING_KEY_VERSION": "1",
+    "REVIEW_ENABLED": "false",
+    "PROVIDER_OUTPUT_HOSTS": "fal.media",
+    "PRICE_CONFIG_VERIFIED": "false"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "containers": [
+    {
+      "class_name": "MediaContainer",
+      "image": "./renderer/Dockerfile",
+      "max_instances": 2,
+      "instance_type": "standard-2"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RENDERER",
+        "class_name": "MediaContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "MediaContainer"
+      ]
+    }
+  ]
+}

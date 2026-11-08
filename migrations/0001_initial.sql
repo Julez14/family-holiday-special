@@ -2,7 +2,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE sessions (id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
 CREATE TABLE projects (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES sessions(id), network_hash TEXT NOT NULL,
- state TEXT NOT NULL DEFAULT 'draft', revision INTEGER NOT NULL DEFAULT 0, preset TEXT,
+ mutation_token TEXT, state TEXT NOT NULL DEFAULT 'draft', revision INTEGER NOT NULL DEFAULT 0, preset TEXT,
  manifest TEXT, manifest_hash TEXT, idempotency_key TEXT, workflow_id TEXT, active_render_id TEXT,
  seed INTEGER NOT NULL, description_requests INTEGER NOT NULL DEFAULT 0, description_busy INTEGER NOT NULL DEFAULT 0,
  error_code TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER,
