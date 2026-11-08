@@ -1,8 +1,8 @@
-# Paid development deployment
+# Paid local development
 
 The owner explicitly authorized live fal.ai and Cloudflare Workers AI costs on November 7, 2026. That instruction supersedes the initial no-deploy/no-paid defaults for this isolated `dev` deployment. It does not establish that a real-photo likeness/quality pilot has passed.
 
-`wrangler.dev.jsonc` uses a separate Worker, Workflow, D1 database and private R2 bucket. `wrangler.jsonc` stays local and mock; `wrangler.production.jsonc` keeps the deployed `main` app mock. No automated test calls paid inference. `wrangler.real.jsonc` remains an unconfigured production launch template.
+The user clarified that the hosted app must run main with mock generation, while the local dev app must use real fal and Workers AI. `npm run dev` now serves the frontend locally at https://localhost:8787 and signs requests to the backend configured by `wrangler.dev.jsonc`. That backend has separate Worker/Workflow/D1/private R2 resources, rejects unsigned private API requests, and redirects app-page requests to hosted mock main. Public signed fal references/callbacks and unlisted shares remain reachable. `npm run dev:mock` explicitly uses local mock `wrangler.jsonc`; `wrangler.real.jsonc` remains an unconfigured public production template. Normal checks, CI and mock browser tests never call paid inference.
 
 The owner enabled Workers Paid after the initial account-entitlement rejection. Container deployment is now available and the native image is deployed. [Cloudflare Containers pricing](https://developers.cloudflare.com/containers/platform/pricing/) lists a $5/month Workers Paid minimum and included compute allowances; additional runtime/egress is usage-billed. Follow [DEPLOYMENTS.md](DEPLOYMENTS.md) for live integration-test status.
 
@@ -12,7 +12,7 @@ The owner enabled Workers Paid after the initial account-entitlement rejection. 
 - Four five-second animation clips: `minimax/h3-max/reference-to-video`, 768P, through the same queue API.
 - Random descriptions: `@cf/google/gemma-4-26b-a4b-it` through the native `AI` binding. Vision review remains disabled pending calibration.
 - Photo normalization, decoding and final 20-second H.264/AAC edit: the `MediaContainer` Cloudflare Container. The Worker streams private R2 inputs into it directly; native Internet access is disabled. It sleeps after two idle minutes; two instances maximum.
-- Browser generation: a real managed Turnstile widget restricted to the dev hostname; server verification checks hostname and action.
+- Local browser generation: the loopback Vite server signs method, request path/query and a 60-second timestamp with the dev operator credential. The Worker verifies it before private API access. Local authenticated generation does not require a Turnstile challenge. The separate public real-mode template retains hostname/action-checked Turnstile.
 - `FAL_KEY`, `ASSET_SIGNING_SECRET`, `TURNSTILE_SECRET` and `DEV_OPERATOR_SECRET` are Cloudflare secret bindings. They must never appear in Git, public configuration or logs. The existing local fal credential is transferred through a restricted temporary file and removed after deployment.
 - Music: original, sample-free synthesis documented in [MUSIC.md](MUSIC.md). Paid dev previews are explicitly labeled code-drawn illustrations; real output is generated from the uploaded source.
 
@@ -39,9 +39,15 @@ Run `node scripts/live-smoke.mjs --allow-paid` only when a paid test is intended
 
 Two paid runs reached ready. The second ran from a fresh project without recovery, accepting all nine fal requests on revision zero; its conservative reservations totaled $8.77, not a measured bill. A new paid test can be started with `--allow-paid --fresh` only after the previous project is ready. That flag archives its private state and output before creating the next project; it refuses unfinished or uncertain jobs. No further paid test is required for the current handoff.
 
-The smoke script uses a separate dev-only operator HMAC in place of a browser Turnstile token. It is bound to the owned project, immutable generation key and a 60-second timestamp. Ownership, origin checks, all spend reservations and immutable-job rules still apply. Normal browser requests always verify Turnstile. The operator secret is stored locally in mode-600 `.wrangler/dev-operator-secret`; remove or rotate the remote secret to revoke this access.
+Both the local server and the explicit smoke CLI read mode-600 `.wrangler/dev-operator-secret`. Every private backend request has a short-lived method/path signature; the CLI also retains its project/generation-key signature. These credentials work only on the real dev channel. Ownership, origin, spending and immutable-job checks still apply. The local server listens only on loopback, checks Host/Origin, rejects foreign-origin writes and denies serving `.wrangler/` files. Provider and operator keys never enter browser code. Remove or rotate the remote operator secret to revoke local access.
 
-## Deploying
+## Running locally
+
+Run `npm run dev` from the dev branch. The existing workstation credential is already installed; another machine needs the same private operator credential. Accept the local HTTPS certificate. Frontend edits hot reload; Worker/Workflow edits need a backend deployment. Mock operation is a separate `npm run dev:mock` command. Both modes use port 8787.
+
+Cloudflare documents that Durable Objects and Workflows cannot currently be remote bindings in a local Worker; the authenticated dev backend supplies those runtimes and the native renderer while the app UI stays local. See [supported development bindings](https://developers.cloudflare.com/workers/local-development/bindings-per-env/). No public tunnel to the laptop or local provider API key is required.
+
+## Deploying the dev backend
 
 Run `npm run check`, apply `wrangler d1 migrations apply DB --remote --config wrangler.dev.jsonc`, generate/upload the three private music keys, then `npm run deploy:dev`. Wrangler preserves existing secret bindings. Deployment requires a working Docker daemon for the Linux/amd64 renderer image.
 

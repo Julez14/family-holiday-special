@@ -4,27 +4,36 @@ Your people. A little holiday chaos. A mobile-first React app that turns **1–6
 
 **Hosted main:** https://family-holiday-special.juelzlax.workers.dev (mock mode).
 
-**Live dev:** https://family-holiday-special-dev.juelzlax.workers.dev (`dev` branch). Real fal images/video, Workers AI descriptions and native Cloudflare rendering are enabled. See [paid development setup](docs/PAID_DEVELOPMENT.md) for services, spending reservations, music and the explicitly paid integration test, and [deployments](docs/DEPLOYMENTS.md) for verified resources and results.
+**Local dev:** https://localhost:8787 (`dev` branch, `npm run dev`). Real fal images/video, Workers AI descriptions and native Cloudflare rendering are enabled through an authenticated Cloudflare dev backend. The backend hostname redirects its app page to hosted main. See [paid development setup](docs/PAID_DEVELOPMENT.md) for services, spending reservations, music and the explicitly paid integration test, and [deployments](docs/DEPLOYMENTS.md) for verified resources and results.
 
-**Status:** both mock and live dev generation work end to end. A fresh paid dev test completed upload, descriptions, five generated images, four clips and a 20-second 720p video in about 203 seconds, without repairs or manual recovery. Playback, seeking and download passed. The test used an original illustrated avatar; real-photo likeness, model comparisons and the human quality pilot remain unverified. Main and local development stay mock, with original illustrative results explicitly labeled throughout the app.
+**Status:** both mock and live dev generation work end to end. A fresh paid dev test completed upload, descriptions, five generated images, four clips and a 20-second 720p video in about 203 seconds, without repairs or manual recovery. Playback, seeking and download passed. The test used an original illustrated avatar; real-photo likeness, model comparisons and the human quality pilot remain unverified. Main stays mock, with original illustrative results explicitly labeled throughout the app. Local `dev` uses paid services; `dev:mock` is available separately.
 
 The product authority is [Family_Christmas_Cartoon_PRD.md](Family_Christmas_Cartoon_PRD.md), with [Model_Selection_Decisions.md](Model_Selection_Decisions.md) alongside it. See [the implementation report](docs/IMPLEMENTATION_REPORT.md) for evidence and remaining launch inputs.
 
 ## Run locally
 
-Requires Node 22.12+ and npm. Normal mock operation needs no API keys, Docker, Python or system FFmpeg.
+Requires Node 22.12+ and npm. The local paid app on this workstation is configured already:
 
 ```sh
+git switch dev
 npm ci
-npm run db:local
 npm run dev
 ```
 
-Open **https://localhost:8787** and accept Wrangler's local development certificate. HTTPS is deliberate: Safari rejects the secure ownership cookie on HTTP localhost. Real deployment also requires HTTPS. The only browser persistence is the project ID; ownership stays in an HttpOnly, Secure, SameSite cookie. Returning to `/p/<project-id>` works in that browser. A share link grants playback, never ownership.
+Open **https://localhost:8787** and accept the local development certificate. The React frontend runs locally with hot reload. Its loopback-only server signs API requests to the isolated Cloudflare dev backend, which runs real Workers AI, fal calls, durable jobs, private storage and native rendering. Backend source changes require `npm run deploy:dev`; frontend changes reload locally. The backend app URL redirects to mock main, and private backend APIs reject unsigned requests.
 
-Upload JPEG, PNG or WebP portraits, confirm framing if browser detection is unavailable, add descriptions or choose them automatically, select a preset, then Generate. The mock job uses the same D1/R2/Workflow machinery as real mode and completes with a silent development fixture. **It does not create likenesses from the uploaded photos.**
+The server reads `.wrangler/dev-operator-secret`, an ignored mode-600 operator credential matching the Cloudflare secret binding. It never sends that key to browser JavaScript. On another workstation, provision the same dev credential privately before running the paid app. Provider keys remain in Cloudflare. Local operator authentication replaces the public Turnstile challenge for this trusted development path; ownership, origins, budgets and immutable jobs still apply. See [paid development](docs/PAID_DEVELOPMENT.md).
 
-`npm run build` refreshes the frontend while a Wrangler session is running. Worker changes reload automatically. The self-hosted MediaPipe WASM files are copied at install time; the versioned detector model is committed and checksum-verified. Photos are not sent to a third-party detector CDN.
+For fully local mock operation without provider keys, Docker, Python or system FFmpeg:
+
+```sh
+npm run db:local
+npm run dev:mock
+```
+
+Both commands use port 8787, so run one mode at a time. Mock mode uses local D1/R2 and original illustrative fixtures; paid dev uses separate Cloudflare D1/R2 resources. The app clears an inaccessible saved project when changing modes. HTTPS preserves Secure ownership cookies on Safari. A share link grants playback, never ownership.
+
+Upload JPEG, PNG or WebP portraits, confirm framing if detection is unavailable, add descriptions or choose them automatically, select a preset, then Generate. The self-hosted MediaPipe WASM files are copied at install time; the versioned detector model is committed and checksum-verified. Photos are not sent to a third-party detector CDN.
 
 ## Verify
 
@@ -64,7 +73,7 @@ Project-local FFmpeg/ffprobe binaries are development dependencies on supported 
 
 ## Deploy main
 
-`wrangler.production.jsonc` targets the hosted mock Worker with its own D1/R2 bindings and HTTPS origin. Run `npm run deploy:main` after reviewing changes. The deployed signing secret is retained by Cloudflare and is not committed. Local development still uses `wrangler.jsonc`.
+`wrangler.production.jsonc` targets the hosted mock Worker with its own D1/R2 bindings and HTTPS origin. Run `npm run deploy:main` after reviewing changes. The deployed signing secret is retained by Cloudflare and is not committed. Only `npm run dev:mock` uses local `wrangler.jsonc`; `npm run dev` serves the paid local frontend.
 
 ## Prepare real mode
 
@@ -116,7 +125,7 @@ Delete revokes the application link immediately, terminates the Workflow and att
 
 A lost submission receipt remains `submission_unknown`; the app waits for a correlated signed callback and stops without duplicate submission if acceptance stays unknown. Operators should reconcile that attempt in the fal dashboard before resolving its reservation/slot. Do not create another request to discover whether the first one happened. A known request with a missing callback is polled by its original ID. Callback handlers only record durable facts and never launch inference.
 
-The default local server can invoke cleanup with Wrangler's scheduled-test support. To reset only development data, stop local servers and remove **this repository's** ignored `.wrangler/state` and `.wrangler/e2e` directories; this loses local projects. Never run remote destructive cleanup commands based on those local instructions.
+The local mock server can invoke cleanup with Wrangler's scheduled-test support. To reset only development data, stop local servers and remove **this repository's** ignored `.wrangler/state` and `.wrangler/e2e` directories; this loses local projects. Never run remote destructive cleanup commands based on those local instructions.
 
 See [CONTINUITY.md](docs/CONTINUITY.md) for the tutorial-oriented technical explanation and [ASSET_PROVENANCE.md](docs/ASSET_PROVENANCE.md) for bundled media/font/model provenance.
 

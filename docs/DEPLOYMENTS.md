@@ -14,18 +14,19 @@
 
 Deployment was explicitly authorized on November 7, 2026 (Toronto), after the initial local-only build. The original PRD's no-deploy default is superseded by that instruction. The signing secret was generated locally, passed through a permission-restricted temporary deployment file, stored by Cloudflare and removed from the local temporary directory. It is absent from Git.
 
-## Dev — live fal and Workers AI verified
+## Dev — authenticated backend for the local real app
 
 - Branch: `dev`, created from deployed `main`; not merged back into main.
-- URL: https://family-holiday-special-dev.juelzlax.workers.dev
+- Local app: https://localhost:8787 (`npm run dev` on the dev branch).
+- Backend: https://family-holiday-special-dev.juelzlax.workers.dev; app pages redirect to hosted mock main, and private API routes require local operator signatures.
 - Worker/configuration: `family-holiday-special-dev` / `wrangler.dev.jsonc`
-- Cloudflare version: `5fe9672e-3325-4c0c-a09a-a1516c95e387`
+- Cloudflare version: `22f7d3b8-cb2b-4500-9aac-96c668b5c5c6`
 - D1: `family-holiday-special-dev` (`a898b3e1-6358-443f-8f62-6faa2a0b9930`); all three migrations applied.
 - Private R2: `family-holiday-special-dev-private`; three original instrumental WAVs installed.
 - Active Workflow: `family-holiday-special-dev-production` / `LiveProductionWorkflow`. The earlier prototype Workflow is no longer bound to the app.
 - Container application: `family-holiday-special-dev-mediacontainer` (`a033c312-4ed8-4d0e-8261-951939fd398e`), standard-2, two instances maximum, two-minute idle sleep, Internet disabled.
 - Verified native image: `sha256:2a99bc86f51e2b6a7024a6016fa2e0ed3384dd4d32fd99681334ce13fce7f626` in the account's Cloudflare registry.
-- Native Workers AI binding; real fal models and four secret bindings installed. Managed Turnstile is restricted to the dev hostname. No secret is committed.
+- Native Workers AI binding; real fal models and four secret bindings installed. The trusted local server authenticates with a dev-only HMAC; the public real-mode path retains Turnstile. No secret is committed.
 - Status: `MODE=real`, `PAID_GENERATION_ENABLED=true`. The owner explicitly authorized paid development and enabled Workers Paid.
 - Spending reservations: $20/project, $40/UTC day, two concurrent fal requests. These are application planning caps, not exact provider bills or total Cloudflare billing limits.
 
@@ -45,8 +46,12 @@ The fresh run reserved $8.77 across inference and native operations; actual acco
 
 [Watch the generated test cartoon](https://family-holiday-special-dev.juelzlax.workers.dev/s/474d1f5a651984adcb42e9e1e81a32866a890fa53e8a7ce91efd239893b3de77). It is unlisted synthetic test content and remains subject to normal retention. Owner cookies, local test state, raw provider output and diagnostics stay in ignored `.wrangler/` files.
 
-These results verify service integration, not real-photo likeness, multi-person quality or matched-model superiority. One debug output duplicated the single character within a shot. Advisory vision remains disabled pending calibration. The paid smoke script uses a narrowly scoped dev operator signature; a human browser run through the real Turnstile challenge and real-photo pilot remain separate acceptance checks.
+These results verify service integration, not real-photo likeness, multi-person quality or matched-model superiority. One debug output duplicated the single character within a shot. Advisory vision remains disabled pending calibration. The paid smoke script and local frontend use scoped dev operator signatures. The real-photo pilot and public real-mode Turnstile acceptance remain separate launch checks; the local dev app does not require that public challenge.
 
 ### Deployment issue resolved
 
 The initial account lacked Workers Paid. After upgrade, a native service that fetched public signed URLs encountered HTTP 403. Private R2 byte streaming removed that public HTTP dependency. A gradual container rollout also left an older image serving requests; a full rollout activated the verified `r2-stream-v2` image. Future dev deployments use 100% rollout, versioned inspector/renderer names and protocol preflight before any new paid image/video call. Native infrastructure failures propagate without buying replacement model output. See [operations](PAID_DEVELOPMENT.md) and [architecture](ARCHITECTURE.md).
+
+### Local routing correction
+
+The hosted main app remains unchanged in mock mode. Local dev now serves React directly with Vite and forwards signed API requests to this backend. `LOCAL_DEV_ONLY=true` locks private API access; `PUBLIC_APP_ORIGIN` directs backend app-page requests to main. Provider-facing signed references, verified callbacks and unlisted share playback stay public by design. `dev:mock` preserves an explicit local fixture mode. This Worker-only update retained the already verified native image with `--containers-rollout=none`.

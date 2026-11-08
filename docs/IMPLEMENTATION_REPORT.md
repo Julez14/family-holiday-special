@@ -6,7 +6,7 @@ The application is built, main is hosted in mock mode, and the isolated dev depl
 
 ## Delivered
 
-A React/TypeScript/Vite application with Cloudflare Worker API, private D1/R2 storage, durable Workflows, typed fal queue integration, Workers AI descriptions and an FFmpeg/Pillow Container renderer. Both supplied Markdown documents are at the repository root. Main and normal local development remain mock; `dev` uses real paid services under the owner's explicit authorization.
+A React/TypeScript/Vite application with Cloudflare Worker API, private D1/R2 storage, durable Workflows, typed fal queue integration, Workers AI descriptions and an FFmpeg/Pillow Container renderer. Both supplied Markdown documents are at the repository root. Hosted main remains mock. `npm run dev` runs the local dev frontend with real services through an authenticated Cloudflare backend; `npm run dev:mock` preserves explicit local fixture operation.
 
 The user flow covers 1–6 individual uploads, local face-location/manual framing fallback, editable optional names and descriptions, per-character/batch description choices, three fixed presets, immutable/idempotent generation, persisted progress/previews, a finished 20-second video, sharing, download, public unlisted playback, owner deletion and retention cleanup. The compiler covers every cast member in moving shots with at most two per shot. The scope excludes scene rerolls, script editing, style/model selection and post-completion editing.
 
@@ -17,7 +17,7 @@ Real dev uses GPT Image 2.6 Flare Edit for canonical portraits and four frames, 
 | Check | Result |
 | --- | --- |
 | TypeScript and Vite build | Passed |
-| Domain/security/D1 tests | 38 passed, including all 18 preset/cast-size combinations, signatures, exact description mappings, concurrent reservations, callback races, retry limits, cleanup, serialized Workflow errors and native failures without replacement purchases |
+| Domain/security/D1 tests | 39 passed, including all 18 preset/cast-size combinations, signatures, exact description mappings, concurrent reservations, callback races, retry limits, cleanup, serialized Workflow errors, local request signatures and native failures without replacement purchases |
 | Browser/API integration | 4 passed: two API scenarios, desktop Chromium, mobile WebKit at 360 px |
 | Native media contract | 8 passed: normalization/EXIF, dimensions/formats, all-six-character end card, 20-second edit/audio isolation, bounded fixed/chunked HTTP streams, private staging/render/poster/cleanup, and path/URL rejection |
 | Durable scenario runner | 6 passed: early callback, missing callback, selective clip repair, unknown submission, exhausted retries and provider rejection |
@@ -38,13 +38,13 @@ Known-size media outputs stream into R2; unknown-size reads have a strict fallba
 
 Unknown provider acceptance retains its reservation/slot and is never blindly resubmitted. Known request IDs can be recovered or polled without starting another request. Technical media repairs are bounded project-wide; infrastructure/programming failures propagate without purchasing replacement images. Native protocol preflight runs before model submission, and dev uses a full container rollout to avoid mixing incompatible Worker/native versions. Attempt timing, phase events and provider timing remain distinct observations.
 
-The dev operator smoke signature is restricted to the real dev channel and bound to project, generation key and a short timestamp. It retains ownership, origin, immutability and budget checks. Normal browser generation uses managed Turnstile. Credentials and private test state are ignored and absent from Git. Deployment and recovery instructions are in [PAID_DEVELOPMENT.md](PAID_DEVELOPMENT.md).
+The dev operator smoke signature is restricted to the real dev channel and bound to project, generation key and a short timestamp. It retains ownership, origin, immutability and budget checks. The loopback local frontend uses method/path/time signatures for private backend requests and local generation. Private backend access rejects unsigned requests; its app URL redirects to mock main. The public real-mode template retains managed Turnstile. Credentials and private test state are ignored and absent from Git. Deployment and recovery instructions are in [PAID_DEVELOPMENT.md](PAID_DEVELOPMENT.md).
 
 ## Remaining quality acceptance work
 
 - Run the matched-model proof and permissioned five-cast-set human pilot in [PILOT.md](PILOT.md), with real-photo framing, recognizable faces, stable cast count, readable gags and measured retries/costs. One debug shot duplicated a single character; decoding successfully does not establish visual correctness.
 - Replace dev's clearly labeled illustrative preset previews with representative generated examples before a public real-mode launch. Main stays mock and the production launch template stays unconfigured.
-- Exercise a normal human browser through the real Turnstile challenge, and test real photos/playback on physical iOS/Android devices. The paid integration script used the scoped operator signature.
+- Test real photos/playback on physical iOS/Android devices. Before a public real-mode launch, separately exercise its managed Turnstile flow; trusted local dev intentionally uses operator signatures.
 - Keep advisory vision disabled until calibrated. No biometric identity score or automatic recognition guarantee is supplied.
 - Reconcile actual provider/platform bills before claiming cost per accepted cartoon. A lost external submission receipt cannot provide exactly-once execution; it stops for reconciliation rather than risking a duplicate charge.
 
