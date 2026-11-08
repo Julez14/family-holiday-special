@@ -4,9 +4,9 @@ Your people. A little holiday chaos. A mobile-first React app that turns **1–6
 
 **Hosted main:** https://family-holiday-special.juelzlax.workers.dev (mock mode).
 
-**Development branch:** `dev`, with isolated live-provider configuration in `wrangler.dev.jsonc`. See [paid development setup](docs/PAID_DEVELOPMENT.md) for services, spending reservations, music and the explicitly paid integration test. The Cloudflare Container deployment currently awaits enabling Workers Paid on the account; generation stays paused until that dependency is available.
+**Live dev:** https://family-holiday-special-dev.juelzlax.workers.dev (`dev` branch). Real fal images/video, Workers AI descriptions and native Cloudflare rendering are enabled. See [paid development setup](docs/PAID_DEVELOPMENT.md) for services, spending reservations, music and the explicitly paid integration test, and [deployments](docs/DEPLOYMENTS.md) for verified resources and results.
 
-**Status:** the local and hosted mock experience works end to end, including persistent jobs, playback, sharing, and deletion. Real fal / Workers AI / Cloudflare Container adapters are implemented behind disabled production gates. The main Worker is deployed; paid model inference remains disabled on main. Generated likeness, model comparisons and the human quality pilot are still unverified. Mock results are original illustrative animations, explicitly labeled throughout the app.
+**Status:** both mock and live dev generation work end to end. A fresh paid dev test completed upload, descriptions, five generated images, four clips and a 20-second 720p video in about 203 seconds, without repairs or manual recovery. Playback, seeking and download passed. The test used an original illustrated avatar; real-photo likeness, model comparisons and the human quality pilot remain unverified. Main and local development stay mock, with original illustrative results explicitly labeled throughout the app.
 
 The product authority is [Family_Christmas_Cartoon_PRD.md](Family_Christmas_Cartoon_PRD.md), with [Model_Selection_Decisions.md](Model_Selection_Decisions.md) alongside it. See [the implementation report](docs/IMPLEMENTATION_REPORT.md) for evidence and remaining launch inputs.
 
