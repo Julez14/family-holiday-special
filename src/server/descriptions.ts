@@ -22,7 +22,9 @@ export function validateDescriptions(data: unknown, ids: string[]) {
 export async function generateDescriptions(env: AppEnv, projectId: string, ids: string[], preset: PresetId | null, existing: string[], seed: number) {
  realReady(env);
  if (env.MODE === 'mock') {
-  await reserve(env, projectId, `text:${crypto.randomUUID()}`, usdMicros(env.TEXT_COST_USD));
+  const reservation = `text:${crypto.randomUUID()}`;
+  await reserve(env, projectId, reservation, usdMicros(env.TEXT_COST_USD));
+  await settle(env, reservation);
   const available = IDEAS.filter(s => !existing.includes(s));
   return ids.map((id, i) => ({ id, description: (available.length >= ids.length ? available : IDEAS)[(i + seed % Math.max(1, available.length)) % (available.length >= ids.length ? available.length : IDEAS.length)] }));
  }

@@ -49,6 +49,7 @@ export async function view(env: AppEnv, p: ProjectRow): Promise<ProjectView> {
 export async function saveAsset(env: AppEnv, projectId: string, kind: AssetKind, body: ReadableStream | ArrayBuffer | Uint8Array, mime: string, meta: { width?: number; height?: number; duration?: number } = {}) {
  const id = crypto.randomUUID(); const key = `${projectId}/${kind}/${id}`;
  await env.MEDIA.put(key, body, { httpMetadata: { contentType: mime } });
- await statement(env, 'INSERT INTO assets(id,project_id,kind,r2_key,mime,width,height,duration,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)', id, projectId, kind, key, mime, meta.width ?? null, meta.height ?? null, meta.duration ?? null, Date.now(), Date.now() + 86400000).run();
+ const inserted = await statement(env, "INSERT INTO assets(id,project_id,kind,r2_key,mime,width,height,duration,created_at,expires_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM projects WHERE id=? AND state NOT IN ('deleting','deleted','expired') AND expires_at>?)", id, projectId, kind, key, mime, meta.width ?? null, meta.height ?? null, meta.duration ?? null, Date.now(), Date.now() + 86400000, projectId, Date.now()).run();
+ if (!inserted.meta.changes) { await env.MEDIA.delete(key); throw new AppError(404, 'deleted', 'This cartoon is no longer available.'); }
  return id;
 }
