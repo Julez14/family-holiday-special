@@ -36,6 +36,7 @@ interface Config {
   generationEnabled: boolean;
   turnstileSiteKey: string | null;
   localOperatorAccess: boolean;
+  usageLimitsEnabled: boolean;
 }
 const toInput = (c: Character): CharacterInput => ({
   id: c.id,
@@ -457,7 +458,11 @@ export default function App() {
       )}
       {config?.mode === 'real' && config.releaseChannel === 'dev' && (
         <div className="demo-banner">
-          <span className="demo-dot" /> Development studio ·{' '}
+          <span className="demo-dot" />{' '}
+          {config.usageLimitsEnabled === false
+            ? 'Local development · No app usage caps'
+            : 'Development studio'}{' '}
+          ·{' '}
           {config.generationEnabled
             ? 'Generating uses paid AI services.'
             : 'Live generation is temporarily paused.'}{' '}

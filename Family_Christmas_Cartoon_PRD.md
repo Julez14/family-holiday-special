@@ -456,3 +456,6 @@ The API capabilities below were checked on November 7, 2026. Endpoint access, pa
 - [S10 — Cloudflare Workers AI model catalog](https://developers.cloudflare.com/ai/models/) and [Workers AI changelog](https://developers.cloudflare.com/changelog/product/workers-ai/): select a currently supported lightweight text model and verify deprecation dates for character-description generation.
 - [S11 — Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/): Standard storage rates, free allowance, operation charges, and free egress; checked November 7, 2026.
 
+## Operator update — November 8, 2026: local development usage
+
+Authenticated local dev must have no app-imposed project/session/network quota, description-generation count limit, per-project spending cap or daily spending cap. Record request counts and conservative cost estimates without enforcing these ceilings. This exception requires the real dev channel, local-only authenticated backend and explicit `DEV_UNLIMITED_USAGE=true` setting; it must not apply to hosted main. Main must retain configured project, description and spending limits. Product/file constraints, provider-enforced limits, content screening, idempotency, concurrency controls, bounded technical recovery and retention remain unchanged. The local exception supersedes the earlier quota defaults only for this environment.

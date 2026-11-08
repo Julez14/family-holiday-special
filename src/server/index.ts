@@ -9,7 +9,7 @@ import { validateOrigin } from './auth';
 import { AppError } from './errors';
 import { authorizedInference, serveAsset } from './media';
 import { verifyHmac } from './crypto';
-import { signingKey, illustrativePreviews } from './env';
+import { signingKey, illustrativePreviews, unlimitedLocalDev } from './env';
 import { project } from './db';
 import { getPreset } from '../shared/presets';
 import { cleanup } from './cleanup';
@@ -60,6 +60,7 @@ app.get('/api/config', async (c) =>
     releaseChannel: 'RELEASE_CHANNEL' in c.env ? c.env.RELEASE_CHANNEL : 'main',
     turnstileSiteKey: 'TURNSTILE_SITE_KEY' in c.env ? c.env.TURNSTILE_SITE_KEY : null,
     localOperatorAccess: await authorizedLocalDevRequest(c.env, c.req.raw),
+    usageLimitsEnabled: !unlimitedLocalDev(c.env),
     maxPeople: 6,
   }),
 );

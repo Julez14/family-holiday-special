@@ -394,3 +394,131 @@ it('shares confirmed crops for inference but refuses full source photos even wit
   }
 });
 
+it('removes local dev usage caps while retaining accounting and enforcing limits for main', async () => {
+  const { drafts } = await import('../src/server/drafts');
+  const { Hono } = await import('hono');
+  const { AppError } = await import('../src/server/errors');
+  const api = new Hono<{ Bindings: AppEnv }>();
+  api.route('/', drafts);
+  api.onError((error, c) =>
+    c.json(
+      { code: error instanceof AppError ? error.code : 'technical' },
+      error instanceof AppError ? error.status : 500,
+    ),
+  );
+  const { unlimitedLocalDev } = await import('../src/server/env');
+  const { saveAsset } = await import('../src/server/db');
+  const ai = vi.fn(async (_model: unknown, input: { messages: { content: string }[] }) => {
+    const data = JSON.parse(input.messages[1].content);
+    return {
+      response: JSON.stringify({
+        descriptions: data.characterIds.map((id: string) => ({
+          id,
+          description: 'A cheerful perfectionist with a tiny victory dance.',
+        })),
+      }),
+    };
+  });
+  const live = {
+    ...env,
+    MODE: 'real',
+    RELEASE_CHANNEL: 'dev',
+    LOCAL_DEV_ONLY: 'true',
+    DEV_UNLIMITED_USAGE: 'true',
+    DEV_OPERATOR_SECRET: 'x'.repeat(64),
+    APP_ORIGIN: 'https://studio.test',
+    FAL_KEY: 'test',
+    ASSET_SIGNING_SECRET: 'y'.repeat(64),
+    TURNSTILE_SECRET: 'test',
+    TURNSTILE_SITE_KEY: 'test',
+    FAL_WEBHOOK_USER_ID: 'test',
+    PAID_GENERATION_ENABLED: 'true',
+    PILOT_APPROVED: 'true',
+    MUSIC_CLEARED: 'true',
+    PRICE_CONFIG_VERIFIED: 'true',
+    MAX_PROJECTS_PER_DAY: '1',
+    MAX_NETWORK_PROJECTS_PER_DAY: '1',
+    MAX_DESCRIPTION_REQUESTS: '1',
+    MAX_JOB_COST_USD: '0.000001',
+    DAILY_BUDGET_USD: '0.000001',
+    TEXT_MODEL: '@cf/google/gemma-4-26b-a4b-it',
+    TEXT_COST_USD: '0.01',
+    REVIEW_COST_USD: '0.01',
+    RENDER_COST_USD: '0.01',
+    PROCESSING_COST_USD: '0.01',
+    AI: { run: ai },
+    RENDERER: {},
+  } as unknown as AppEnv;
+  expect(unlimitedLocalDev(live)).toBe(true);
+  for (const patch of [
+    { MODE: 'mock' },
+    { RELEASE_CHANNEL: 'main' },
+    { LOCAL_DEV_ONLY: 'false' },
+    { DEV_OPERATOR_SECRET: '' },
+  ])
+    expect(unlimitedLocalDev({ ...live, ...patch } as AppEnv)).toBe(false);
+  const first = await api.request('/projects', { method: 'POST' }, live);
+  expect(first.status).toBe(201);
+  const cookie = first.headers.get('set-cookie')!.split(';')[0];
+  const firstProject = (await first.json()) as { id: string };
+  await env.DB.prepare("UPDATE projects SET state='failed' WHERE id=?").bind(firstProject.id).run();
+  const second = await api.request(
+    '/projects',
+    { method: 'POST', headers: { Cookie: cookie } },
+    live,
+  );
+  expect(second.status).toBe(201);
+  const secondProject = (await second.json()) as { id: string };
+  const source = await saveAsset(
+    live,
+    secondProject.id,
+    'source',
+    new Uint8Array([1]),
+    'image/jpeg',
+  );
+  const character = crypto.randomUUID();
+  await env.DB.prepare(
+    "INSERT INTO characters(id,project_id,ordinal,source_asset_id,crop,framing) VALUES(?,?,0,?,?, 'manual')",
+  )
+    .bind(character, secondProject.id, source, JSON.stringify({ x: 0, y: 0, width: 1, height: 1 }))
+    .run();
+  await env.DB.prepare('UPDATE projects SET description_requests=1000 WHERE id=?')
+    .bind(secondProject.id)
+    .run();
+  const request = () => ({
+    method: 'POST',
+    headers: { Cookie: cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ characterIds: [character], onlyEmpty: false }),
+  });
+  for (let i = 0; i < 2; i++)
+    expect(
+      (await api.request(`/projects/${secondProject.id}/character-descriptions`, request(), live))
+        .status,
+    ).toBe(200);
+  expect(ai).toHaveBeenCalledTimes(2);
+  expect(
+    await env.DB.prepare('SELECT description_requests FROM projects WHERE id=?')
+      .bind(secondProject.id)
+      .first('description_requests'),
+  ).toBe(1002);
+  await reserve(live, secondProject.id, 'large-local-reservation', 1000000);
+  expect(
+    await env.DB.prepare('SELECT amount_micros FROM reservations WHERE id=?')
+      .bind('large-local-reservation')
+      .first('amount_micros'),
+  ).toBe(1000000);
+  const main = { ...live, RELEASE_CHANNEL: 'main' } as AppEnv;
+  expect(
+    (await api.request(`/projects/${secondProject.id}/character-descriptions`, request(), main))
+      .status,
+  ).toBe(429);
+  await expect(reserve(main, secondProject.id, 'limited-main', 1000000)).rejects.toMatchObject({
+    code: 'budget',
+  });
+  await env.DB.prepare("UPDATE projects SET state='failed' WHERE id=?")
+    .bind(secondProject.id)
+    .run();
+  expect(
+    (await api.request('/projects', { method: 'POST', headers: { Cookie: cookie } }, main)).status,
+  ).toBe(429);
+});

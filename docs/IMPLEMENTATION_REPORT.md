@@ -17,7 +17,7 @@ Real dev uses GPT Image 2.6 Flare Edit for canonical portraits and four frames, 
 | Check | Result |
 | --- | --- |
 | TypeScript and Vite build | Passed |
-| Domain/security/D1 tests | 43 passed, including all 18 preset/cast-size combinations, signatures, exact description mappings, concurrent reservations, callback races, retry limits, cleanup, serialized Workflow errors, local request signatures and native failures without replacement purchases |
+| Domain/security/D1 tests | 45 passed, including all 18 preset/cast-size combinations, signatures, exact description mappings, concurrent reservations, callback races, retry limits, cleanup, serialized Workflow errors, local request signatures and native failures without replacement purchases |
 | Browser/API integration | 8 passed: two API scenarios, full desktop/mobile flows and moderation failure screens for both error-code combinations |
 | Native media contract | 8 passed: normalization/EXIF, dimensions/formats, all-six-character end card, 20-second edit/audio isolation, bounded fixed/chunked HTTP streams, private staging/render/poster/cleanup, and path/URL rejection |
 | Durable scenario runner | 6 passed: early callback, missing callback, selective clip repair, unknown submission, exhausted retries and provider rejection |
@@ -34,7 +34,7 @@ The original system FFmpeg had a missing library; project-local development bina
 
 Ownership secrets are high entropy and hashed in D1. Sources are private. fal reference URLs are asset-scoped, signed and expiring. Public share tokens grant playback only; every share/media request checks active render, deletion and expiry. Byte ranges support seeking without long-lived public caching. Observability redacts query strings, disables automatic invocation logs/traces and records bounded categories instead of raw signed URLs, private text or provider errors.
 
-Known-size media outputs stream into R2; unknown-size reads have a strict fallback limit. Gemma calls disable thinking and validate exact requested character IDs. Atomic reservations cover descriptions, images, videos, review and native processing. The dev caps are $20/project, $40/UTC day and two concurrent fal requests; fixed Cloudflare costs and unrelated account activity are separate. The paid switch stops new paid operations.
+Known-size media outputs stream into R2; unknown-size reads have a strict fallback limit. Gemma calls disable thinking and validate exact requested character IDs. Atomic reservations cover descriptions, images, videos, review and native processing. Authenticated local dev has no app project, description or spending caps and still records estimated reservations. Hosted main remains limited. Two concurrent fal requests, provider limits, bounded recovery and product constraints remain; platform costs are separate. The paid switch stops new paid operations.
 
 Unknown provider acceptance retains its reservation/slot and is never blindly resubmitted. Known request IDs can be recovered or polled without starting another request. Technical media repairs are bounded project-wide; infrastructure/programming failures propagate without purchasing replacement images. Native protocol preflight runs before model submission, and dev uses a full container rollout to avoid mixing incompatible Worker/native versions. Attempt timing, phase events and provider timing remain distinct observations.
 

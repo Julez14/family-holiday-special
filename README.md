@@ -22,7 +22,7 @@ npm run dev
 
 Open **https://localhost:8787** and accept the local development certificate. The React frontend runs locally with hot reload. Its loopback-only server signs API requests to the isolated Cloudflare dev backend, which runs real Workers AI, fal calls, durable jobs, private storage and native rendering. Backend source changes require `npm run deploy:dev`; frontend changes reload locally. The backend app URL redirects to mock main, and private backend APIs reject unsigned requests.
 
-The server reads `.wrangler/dev-operator-secret`, an ignored mode-600 operator credential matching the Cloudflare secret binding. It never sends that key to browser JavaScript. On another workstation, provision the same dev credential privately before running the paid app. Provider keys remain in Cloudflare. Local operator authentication replaces the public Turnstile challenge for this trusted development path; ownership, origins, budgets and immutable jobs still apply. See [paid development](docs/PAID_DEVELOPMENT.md).
+The server reads `.wrangler/dev-operator-secret`, an ignored mode-600 operator credential matching the Cloudflare secret binding. It never sends that key to browser JavaScript. On another workstation, provision the same dev credential privately before running the paid app. Provider keys remain in Cloudflare. Local operator authentication replaces the public Turnstile challenge for this trusted development path; ownership, origins and immutable jobs still apply. Local dev has no app-imposed project, description or spending caps; provider limits and bounded technical recovery remain. See [paid development](docs/PAID_DEVELOPMENT.md).
 
 For fully local mock operation without provider keys, Docker, Python or system FFmpeg:
 
@@ -113,9 +113,11 @@ All prices are **conservative envelopes**, not measured billing. The example val
 | `PROCESSING_COST_USD` | One native normalization, crop or inspection HTTP call; retries reserve again |
 | `RENDER_COST_USD` | Entire bounded render envelope, including at most two render executions, internal clip checks and poster composition |
 | `MAX_PROVIDER_CONCURRENCY` | Account-wide active fal slots; unknown submissions keep their slot |
-| `MAX_DESCRIPTION_REQUESTS` | Description button requests per project: 100 in paid dev; 20 in mock and the production template |
+| `MAX_DESCRIPTION_REQUESTS` | Description requests per project in limited modes; bypassed by authenticated unlimited local dev |
 
-A single D1 statement atomically reserves spend against both ceilings. Reservations are idempotent by call/envelope ID. Unknown submissions retain reservations, and failures never trigger unlimited repair. At most two additional image attempts and one additional video attempt are allowed across a project, and a stricter money cap always wins. Fixed storage, bandwidth, database and unrelated provider-account activity are not an exact whole-account invoice cap.
+`DEV_UNLIMITED_USAGE=true` is enabled only on the authenticated, real dev backend (`RELEASE_CHANNEL=dev`, `LOCAL_DEV_ONLY=true`, operator secret required). It bypasses project/session/network quotas, description counts and per-project/daily spending ceilings. Numeric quota values remain fallback defaults if unlimited mode is disabled. Hosted main retains its limits: 20 new projects per browser session over 24 hours, 40 per network/UTC day and 20 description requests per project. File/cast constraints, content screening, idempotency, bounded repairs and concurrency controls remain in every mode.
+
+In limited modes, a single D1 statement atomically reserves spend against both ceilings. Unlimited local dev still records reservations and estimates for accounting. Reservations are idempotent by call/envelope ID. Unknown submissions retain reservations, and failures never trigger unlimited repair. At most two additional image attempts and one additional video attempt are allowed across a project, and limited modes also enforce their spending caps. Fixed storage, bandwidth, database and unrelated provider-account activity are not an exact whole-account invoice cap.
 
 ## Operations and cleanup
 

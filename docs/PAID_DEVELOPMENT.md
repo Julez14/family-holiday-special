@@ -16,11 +16,13 @@ The owner enabled Workers Paid after the initial account-entitlement rejection. 
 - `FAL_KEY`, `ASSET_SIGNING_SECRET`, `TURNSTILE_SECRET` and `DEV_OPERATOR_SECRET` are Cloudflare secret bindings. They must never appear in Git, public configuration or logs. The existing local fal credential is transferred through a restricted temporary file and removed after deployment.
 - Music: original, sample-free synthesis documented in [MUSIC.md](MUSIC.md). Paid dev previews are explicitly labeled code-drawn illustrations; real output is generated from the uploaded source.
 
-## Spending reservations
+## Unlimited local usage and spending records
 
-Reservations are conservative planning allowances, not a provider invoice or an account-wide hard cap. The app enforces $20 per project, $40 per UTC day and two concurrent fal requests. Descriptions, native processing, repairs and unknown submissions also consume reservations. Uncertain submissions are never blindly resubmitted.
+The owner requested unlimited local usage on November 8, 2026. `DEV_UNLIMITED_USAGE=true` bypasses session/network project quotas, automatic-description request caps, generation budget preflight and per-project/daily spending ceilings. It works only for real dev with `LOCAL_DEV_ONLY=true` and an operator secret; every private API request still requires the local signature. Main and the public production template cannot enable it by setting the flag alone.
 
-Automatic descriptions allow 100 requests per dev project, shared across the cast. A batch counts as one request; an accepted request counts even if generation fails. Existing drafts gain the higher allowance without resetting their counters. The request cap has no daily reset, and the separate spending ceilings still apply.
+Reservations remain conservative accounting estimates, not a provider invoice. Descriptions, native processing, repairs and unknown submissions are recorded even when caps are bypassed. The existing numeric cap values are fallback settings for limited operation. Provider-enforced limits, two concurrent fal requests, file/cast constraints, content screening, immutable jobs and bounded recovery still apply. Uncertain submissions are never blindly resubmitted.
+
+Local automatic-description requests are unlimited, including existing drafts; counters are retained for accounting. A batch counts as one request. Hosted main remains limited to 20 description requests per project, 20 projects per browser session over 24 hours and 40 projects per network/UTC day.
 
 | Operation | Reserved USD per call |
 | --- | ---: |
@@ -41,7 +43,7 @@ Run `node scripts/live-smoke.mjs --allow-paid` only when a paid test is intended
 
 Two paid runs reached ready. The second ran from a fresh project without recovery, accepting all nine fal requests on revision zero; its conservative reservations totaled $8.77, not a measured bill. A new paid test can be started with `--allow-paid --fresh` only after the previous project is ready. That flag archives its private state and output before creating the next project; it refuses unfinished or uncertain jobs. No further paid test is required for the current handoff.
 
-Both the local server and the explicit smoke CLI read mode-600 `.wrangler/dev-operator-secret`. Every private backend request has a short-lived method/path signature; the CLI also retains its project/generation-key signature. These credentials work only on the real dev channel. Ownership, origin, spending and immutable-job checks still apply. The local server listens only on loopback, checks Host/Origin, rejects foreign-origin writes and denies serving `.wrangler/` files. Provider and operator keys never enter browser code. Remove or rotate the remote operator secret to revoke local access.
+Both the local server and the explicit smoke CLI read mode-600 `.wrangler/dev-operator-secret`. Every private backend request has a short-lived method/path signature; the CLI also retains its project/generation-key signature. These credentials work only on the real dev channel. Ownership, origin and immutable-job checks still apply; usage caps follow the environment policy above. The local server listens only on loopback, checks Host/Origin, rejects foreign-origin writes and denies serving `.wrangler/` files. Provider and operator keys never enter browser code. Remove or rotate the remote operator secret to revoke local access.
 
 ## Running locally
 
@@ -65,3 +67,7 @@ DOCKER_CONFIG="$PWD/.wrangler/docker" npm run deploy:dev
 ```
 
 The project-local Docker config points to Homebrew's CLI plugins. Wrangler may add registry login credentials during deployment; remove its `auths` entry after deployment, keep the file private and never commit it. The local builder can be stopped afterward with `colima stop holiday-builder`; the deployed Cloudflare Container runs independently.
+
+## Cropped photo references
+
+Canonical portrait generation sends only the confirmed generous crop as its photographic reference. Scene frames use that crop with the accepted canonical cartoon; H3 uses generated frames/cartoons. The full source stays private for owner preview and recropping, and real-mode inference URL signing and retrieval both reject source assets. See the November 8 reference-policy update in the PRD.

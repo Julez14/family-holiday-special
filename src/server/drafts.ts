@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { imageSize } from 'image-size';
 import type { AppEnv } from './env';
-import { signingKey } from './env';
+import { signingKey, unlimitedLocalDev } from './env';
 import { owned, session, draft } from './auth';
 import { statement, view, project, characters, saveAsset, recordEvent, type AssetRow } from './db';
 import { AppError } from './errors';
@@ -34,8 +34,8 @@ drafts.post('/projects', async (c) => {
     c.env,
     `INSERT INTO projects(id,owner_id,network_hash,seed,created_at,updated_at,expires_at)
  SELECT ?,?,?,?,?,?,? WHERE
- (SELECT COUNT(*) FROM projects WHERE owner_id=? AND created_at>?) < ?
- AND (SELECT COUNT(*) FROM projects WHERE network_hash=? AND created_at>?) < ?
+ (?=1 OR (SELECT COUNT(*) FROM projects WHERE owner_id=? AND created_at>?) < ?)
+ AND (?=1 OR (SELECT COUNT(*) FROM projects WHERE network_hash=? AND created_at>?) < ?)
  AND NOT EXISTS(SELECT 1 FROM projects WHERE owner_id=? AND state IN ('draft','queued','creating_cast','creating_frames','animating','rendering') AND expires_at>?)`,
     id,
     owner,
@@ -44,9 +44,11 @@ drafts.post('/projects', async (c) => {
     now,
     now,
     now + DAY,
+    Number(unlimitedLocalDev(c.env)),
     owner,
     now - DAY,
     Number(c.env.MAX_PROJECTS_PER_DAY),
+    Number(unlimitedLocalDev(c.env)),
     network,
     now - DAY,
     Number(c.env.MAX_NETWORK_PROJECTS_PER_DAY),
@@ -273,16 +275,19 @@ drafts.post('/projects/:id/character-descriptions', async (c) => {
   if (!ids.length) return c.json(await view(c.env, p));
   const claim = await statement(
     c.env,
-    "UPDATE projects SET description_busy=1, description_requests=description_requests+1, revision=revision+1 WHERE id=? AND state='draft' AND revision=? AND description_busy=0 AND description_requests<?",
+    "UPDATE projects SET description_busy=1, description_requests=description_requests+1, revision=revision+1 WHERE id=? AND state='draft' AND revision=? AND description_busy=0 AND (?=1 OR description_requests<?)",
     p.id,
     p.revision,
+    Number(unlimitedLocalDev(c.env)),
     Number(c.env.MAX_DESCRIPTION_REQUESTS),
   ).run();
   if (!claim.meta.changes)
     throw new AppError(
       429,
       'descriptions',
-      'The automatic description limit is reached or a request is already running. You can still type your own.',
+      unlimitedLocalDev(c.env)
+        ? 'A description request is already running or your setup changed. Refresh and try again.'
+        : 'The automatic description limit is reached or a request is already running. You can still type your own.',
     );
   await recordEvent(c.env, 'description_requested', p.id, p.preset, ids.length);
   try {

@@ -78,6 +78,7 @@
     "RELEASE_CHANNEL": "dev",
     "PREVIEW_MODE": "illustrative",
     "LOCAL_DEV_ONLY": "true",
+    "DEV_UNLIMITED_USAGE": "true",
     "PUBLIC_APP_ORIGIN": "https://family-holiday-special.juelzlax.workers.dev",
   },
   "ai": {

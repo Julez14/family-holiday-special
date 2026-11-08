@@ -1,4 +1,5 @@
 import type { AppEnv } from './env';
+import { unlimitedLocalDev } from './env';
 import { statement } from './db';
 import { usdMicros } from '../shared/policies';
 import { AppError, unavailable } from './errors';
@@ -24,8 +25,6 @@ export function realReady(env: AppEnv) {
   )
     throw unavailable();
   for (const key of [
-    'MAX_JOB_COST_USD',
-    'DAILY_BUDGET_USD',
     'IMAGE_COST_USD',
     'VIDEO_COST_USD',
     'TEXT_COST_USD',
@@ -34,6 +33,10 @@ export function realReady(env: AppEnv) {
     'PROCESSING_COST_USD',
   ] as const)
     usdMicros(env[key]);
+  if (!unlimitedLocalDev(env)) {
+    usdMicros(env.MAX_JOB_COST_USD);
+    usdMicros(env.DAILY_BUDGET_USD);
+  }
   if (
     !Number.isInteger(Number(env.MAX_PROVIDER_CONCURRENCY)) ||
     Number(env.MAX_PROVIDER_CONCURRENCY) < 1
@@ -49,17 +52,19 @@ export async function reserve(env: AppEnv, projectId: string, id: string, amount
     env,
     `INSERT OR IGNORE INTO reservations(id,project_id,day,amount_micros,created_at)
  SELECT ?,?,?,?,? WHERE
- (SELECT COALESCE(SUM(amount_micros),0) FROM reservations WHERE day=? AND state!='released') + ? <= ?
- AND (SELECT COALESCE(SUM(amount_micros),0) FROM reservations WHERE project_id=? AND state!='released') + ? <= ?
+ (?=1 OR (SELECT COALESCE(SUM(amount_micros),0) FROM reservations WHERE day=? AND state!='released') + ? <= ?)
+ AND (?=1 OR (SELECT COALESCE(SUM(amount_micros),0) FROM reservations WHERE project_id=? AND state!='released') + ? <= ?)
  AND EXISTS(SELECT 1 FROM projects WHERE id=? AND state NOT IN ('deleting','deleted','expired','failed','ready'))`,
     id,
     projectId,
     new Date(now).toISOString().slice(0, 10),
     amount,
     now,
+    Number(unlimitedLocalDev(env)),
     new Date(now).toISOString().slice(0, 10),
     amount,
     usdMicros(env.DAILY_BUDGET_USD),
+    Number(unlimitedLocalDev(env)),
     projectId,
     amount,
     usdMicros(env.MAX_JOB_COST_USD),

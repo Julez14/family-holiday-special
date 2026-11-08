@@ -31,7 +31,7 @@ export async function authorizedLocalDevRequest(
 }
 
 // An explicit dev operator credential allows repeatable, owned-project smoke tests.
-// It never leaves the CLI, never applies to production, and does not skip budgets.
+// It never leaves the CLI, never applies to production, and follows the configured local usage policy.
 export async function authorizedDevGeneration(
   env: AppEnv,
   projectId: string,

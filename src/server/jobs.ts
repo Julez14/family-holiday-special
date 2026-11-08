@@ -8,7 +8,7 @@ import { sha256 } from './crypto';
 import { AppError } from './errors';
 import { realReady } from './budget';
 import { usdMicros } from '../shared/policies';
-import { illustrativePreviews } from './env';
+import { illustrativePreviews, unlimitedLocalDev } from './env';
 import { authorizedDevGeneration, authorizedLocalDevRequest } from './dev-operator';
 export const jobs = new Hono<{ Bindings: AppEnv }>();
 async function startProduction(env: AppEnv, projectId: string, workflowId: string) {
@@ -48,7 +48,7 @@ jobs.post('/projects/:id/generate', async (c) => {
     (cast.length + 4) * usdMicros(c.env.IMAGE_COST_USD) +
     4 * usdMicros(c.env.VIDEO_COST_USD) +
     usdMicros(c.env.RENDER_COST_USD);
-  if (baseline + (cost?.cost ?? 0) > usdMicros(c.env.MAX_JOB_COST_USD))
+  if (!unlimitedLocalDev(c.env) && baseline + (cost?.cost ?? 0) > usdMicros(c.env.MAX_JOB_COST_USD))
     throw new AppError(
       429,
       'budget',
