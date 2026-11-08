@@ -20,7 +20,7 @@ Deployment was explicitly authorized on November 7, 2026 (Toronto), after the in
 - Local app: https://localhost:8787 (`npm run dev` on the dev branch).
 - Backend: https://family-holiday-special-dev.juelzlax.workers.dev; app pages redirect to hosted mock main, and private API routes require local operator signatures.
 - Worker/configuration: `family-holiday-special-dev` / `wrangler.dev.jsonc`
-- Cloudflare version: `22f7d3b8-cb2b-4500-9aac-96c668b5c5c6`
+- Cloudflare version: `7afc0d8a-5547-4328-8baa-dcd12d164ffc`
 - D1: `family-holiday-special-dev` (`a898b3e1-6358-443f-8f62-6faa2a0b9930`); all three migrations applied.
 - Private R2: `family-holiday-special-dev-private`; three original instrumental WAVs installed.
 - Active Workflow: `family-holiday-special-dev-production` / `LiveProductionWorkflow`. The earlier prototype Workflow is no longer bound to the app.
@@ -55,3 +55,7 @@ The initial account lacked Workers Paid. After upgrade, a native service that fe
 ### Local routing correction
 
 The hosted main app remains unchanged in mock mode. Local dev now serves React directly with Vite and forwards signed API requests to this backend. `LOCAL_DEV_ONLY=true` locks private API access; `PUBLIC_APP_ORIGIN` directs backend app-page requests to main. Provider-facing signed references, verified callbacks and unlisted share playback stay public by design. `dev:mock` preserves an explicit local fixture mode. This Worker-only update retained the already verified native image with `--containers-rollout=none`.
+
+### Description variety update
+
+The dev description prompt now leads with a distinctive personality and one expressive mannerism, varies sentence openings and attitudes, avoids generic subjects such as “The performer,” and discourages miniature plots or copying existing descriptions. Photos/names remain excluded. Two bounded real Gemma calls using the exact updated prompt passed: a three-character batch and a single-character request supplied with the batch as existing context. All returned valid ID-mapped JSON within the existing token limits, with distinct openings and behaviors. These checks used synthetic IDs and text only; they did not alter a user project or invoke fal media generation. The existing 39 tests, TypeScript and frontend build passed. Existing saved descriptions change only when explicitly replaced through Choose for me.
