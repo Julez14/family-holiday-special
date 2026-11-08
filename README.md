@@ -2,7 +2,9 @@
 
 Your people. A little holiday chaos. A mobile-first React app that turns **1–6 individual portraits** into a four-shot, 20-second holiday cartoon.
 
-**Status:** the local mock experience works end to end, including persistent jobs, playback, sharing, and deletion. Real fal / Workers AI / Cloudflare Container adapters are implemented behind disabled production gates. **No paid inference or deployment was performed.** Generated likeness, model comparisons and the human quality pilot are still unverified. Mock results are original illustrative animations, explicitly labeled throughout the app.
+**Hosted main:** https://family-holiday-special.juelzlax.workers.dev (mock mode).
+
+**Status:** the local and hosted mock experience works end to end, including persistent jobs, playback, sharing, and deletion. Real fal / Workers AI / Cloudflare Container adapters are implemented behind disabled production gates. The main Worker is deployed; paid model inference remains disabled on main. Generated likeness, model comparisons and the human quality pilot are still unverified. Mock results are original illustrative animations, explicitly labeled throughout the app.
 
 The product authority is [Family_Christmas_Cartoon_PRD.md](Family_Christmas_Cartoon_PRD.md), with [Model_Selection_Decisions.md](Model_Selection_Decisions.md) alongside it. See [the implementation report](docs/IMPLEMENTATION_REPORT.md) for evidence and remaining launch inputs.
 
@@ -57,6 +59,10 @@ Project-local FFmpeg/ffprobe binaries are development dependencies on supported 
 | `public/fixtures` | Illustrative development assets, not model benchmark evidence |
 | `scripts/check-scenarios.mjs` | Callback races, missing callbacks, selective repair, unknown submission, exhaustion and rejection checks |
 | `docs` | Implementation report, continuity explanation, pilot and asset records |
+
+## Deploy main
+
+`wrangler.production.jsonc` targets the hosted mock Worker with its own D1/R2 bindings and HTTPS origin. Run `npm run deploy:main` after reviewing changes. The deployed signing secret is retained by Cloudflare and is not committed. Local development still uses `wrangler.jsonc`.
 
 ## Prepare real mode
 
