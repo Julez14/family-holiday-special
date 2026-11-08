@@ -20,6 +20,7 @@
     "worker-configuration.d.ts",
     "vite.config.ts",
     "playwright.config.ts",
-    "real-configuration.d.ts"
+    "real-configuration.d.ts",
+    "dev-configuration.d.ts"
   ]
 }

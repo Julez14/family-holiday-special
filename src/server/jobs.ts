@@ -8,6 +8,8 @@ import { sha256 } from './crypto';
 import { AppError } from './errors';
 import { realReady } from './budget';
 import { usdMicros } from '../shared/policies';
+import { illustrativePreviews } from './env';
+import { authorizedDevGeneration } from './dev-operator';
 export const jobs = new Hono<{ Bindings: AppEnv }>();
 jobs.post('/projects/:id/generate', async (c) => {
   const p = await owned(c);
@@ -43,35 +45,36 @@ jobs.post('/projects/:id/generate', async (c) => {
       'This cast exceeds the demo’s configured spending limit. Your setup is saved.',
     );
   if (c.env.MODE === 'real') {
-    const form = new FormData();
-    form.set('secret', c.env.TURNSTILE_SECRET!);
-    form.set('response', body.turnstileToken ?? '');
-    form.set('idempotency_key', crypto.randomUUID());
-    const result = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: form,
-      signal: AbortSignal.timeout(10000),
-    });
-    const verification = (await result.json()) as {
-      success?: boolean;
-      hostname?: string;
-      action?: string;
-    };
-    if (
-      !verification.success ||
-      verification.hostname !== new URL(c.env.APP_ORIGIN).hostname ||
-      verification.action !== 'generate'
-    )
-      throw new AppError(
-        403,
-        'turnstile',
-        'Please complete the quick security check and try again.',
-      );
+    if (!(await authorizedDevGeneration(c.env, p.id, key, c.req.raw.headers))) {
+      const form = new FormData();
+      form.set('secret', c.env.TURNSTILE_SECRET!);
+      form.set('response', body.turnstileToken ?? '');
+      form.set('idempotency_key', crypto.randomUUID());
+      const result = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(10000),
+      });
+      const verification = (await result.json()) as {
+        success?: boolean;
+        hostname?: string;
+        action?: string;
+      };
+      if (
+        !verification.success ||
+        verification.hostname !== new URL(c.env.APP_ORIGIN).hostname ||
+        verification.action !== 'generate'
+      )
+        throw new AppError(
+          403,
+          'turnstile',
+          'Please complete the quick security check and try again.',
+        );
+    }
     for (const key of [
       ...['snowball', 'giftwrap', 'danceoff'].flatMap((id) => [
         `music/${id}.wav`,
-        `samples/${id}.mp4`,
-        `samples/${id}.jpg`,
+        ...(illustrativePreviews(c.env) ? [] : [`samples/${id}.mp4`, `samples/${id}.jpg`]),
       ]),
     ])
       if (!(await c.env.MEDIA.head(key)))

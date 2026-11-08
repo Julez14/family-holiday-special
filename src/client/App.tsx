@@ -30,6 +30,9 @@ import { preparePortrait } from './portraits';
 import { CropDialog, type CropRequest } from './CropDialog';
 interface Config {
   mode: 'mock' | 'real';
+  previewMode: 'illustrative' | 'generated';
+  releaseChannel: string;
+  generationEnabled: boolean;
   turnstileSiteKey: string | null;
 }
 const toInput = (c: Character): CharacterInput => ({
@@ -450,6 +453,15 @@ export default function App() {
           fixtures, not your uploaded faces. No paid generation.
         </div>
       )}
+      {config?.mode === 'real' && config.releaseChannel === 'dev' && (
+        <div className="demo-banner">
+          <span className="demo-dot" /> Development studio ·{' '}
+          {config.generationEnabled
+            ? 'Generating uses paid AI services.'
+            : 'Live generation is temporarily paused.'}{' '}
+          Scene previews are illustrative; your cartoon is generated from your photos.
+        </div>
+      )}
       <main>
         {editing && (
           <>
@@ -521,7 +533,7 @@ export default function App() {
                       </span>
                     </div>
                     <div className="art-caption">
-                      {config?.mode === 'real'
+                      {config?.previewMode === 'generated'
                         ? 'A pre-generated sample. Your cast makes it yours.'
                         : 'Illustrative demo animation · silent'}
                     </div>
@@ -909,6 +921,7 @@ export default function App() {
                       starting ||
                       uploading ||
                       !!busyIds.length ||
+                      config?.generationEnabled === false ||
                       (config?.mode === 'real' && !turnstileToken)
                     }
                     onClick={() => void generate()}
@@ -1192,7 +1205,7 @@ export default function App() {
       {preview && (
         <SampleDialog
           preset={preview}
-          mode={config?.mode ?? 'mock'}
+          mode={config?.previewMode ?? 'illustrative'}
           close={() => setPreview(null)}
         />
       )}
@@ -1235,7 +1248,7 @@ function SampleDialog({
       <div className="eyebrow">A GLIMPSE OF THE CHAOS</div>
       <h2 id="sample-title">{getPreset(preset).title}</h2>
       <p>
-        {mode === 'mock'
+        {mode === 'illustrative'
           ? 'Illustrative demo, drawn with code. Silent development audio. This isn’t a generated likeness sample.'
           : 'A representative pre-generated sample. Your own cast will make it personal.'}
       </p>

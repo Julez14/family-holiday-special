@@ -9,7 +9,7 @@ import { validateOrigin } from './auth';
 import { AppError } from './errors';
 import { authorizedInference, serveAsset } from './media';
 import { verifyHmac } from './crypto';
-import { signingKey } from './env';
+import { signingKey, illustrativePreviews } from './env';
 import { project } from './db';
 import { getPreset } from '../shared/presets';
 import { cleanup } from './cleanup';
@@ -39,6 +39,9 @@ app.use('*', async (c, next) => {
 app.get('/api/config', (c) =>
   c.json({
     mode: c.env.MODE,
+    generationEnabled: c.env.MODE === 'mock' || c.env.PAID_GENERATION_ENABLED === 'true',
+    previewMode: illustrativePreviews(c.env) ? 'illustrative' : 'generated',
+    releaseChannel: 'RELEASE_CHANNEL' in c.env ? c.env.RELEASE_CHANNEL : 'main',
     turnstileSiteKey: 'TURNSTILE_SITE_KEY' in c.env ? c.env.TURNSTILE_SITE_KEY : null,
     maxPeople: 6,
   }),
@@ -48,7 +51,7 @@ app.get('/api/samples/:preset/:kind', async (c) => {
   const kind = c.req.param('kind');
   if (!['snowball', 'giftwrap', 'danceoff'].includes(preset) || !['video', 'poster'].includes(kind))
     throw new AppError(404, 'sample', 'Sample unavailable.');
-  if (c.env.MODE === 'mock')
+  if (illustrativePreviews(c.env))
     return c.env.ASSETS.fetch(
       new Request(
         `${new URL(c.req.url).origin}/fixtures/${preset}${kind === 'video' ? '-3.mp4' : '-poster.jpg'}`,

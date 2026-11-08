@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build && wrangler dev --port 8787 --local-protocol https",
     "build": "vite build",
-    "types": "wrangler types --strict-vars false && wrangler types real-configuration.d.ts --config wrangler.real.jsonc --env-interface RealEnv --include-runtime false --strict-vars false",
+    "types": "wrangler types --strict-vars false && wrangler types real-configuration.d.ts --config wrangler.real.jsonc --env-interface RealEnv --include-runtime false --strict-vars false && wrangler types dev-configuration.d.ts --config wrangler.dev.jsonc --env-interface DevEnv --include-runtime false --strict-vars false",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -21,7 +21,9 @@
     "dev:e2e": "npm run build && wrangler dev --port 8790 --local-protocol https --persist-to .wrangler/e2e --var APP_ORIGIN:https://localhost:8790 --var DAILY_BUDGET_USD:1000 --var MAX_NETWORK_PROJECTS_PER_DAY:1000",
     "test:scenarios": "npm run build && node scripts/check-scenarios.mjs",
     "format": "prettier --write src tests scripts *.ts *.json *.jsonc",
-    "deploy:main": "npm run build && wrangler deploy --config wrangler.production.jsonc"
+    "deploy:main": "npm run build && wrangler deploy --config wrangler.production.jsonc",
+    "deploy:dev": "npm run build && wrangler deploy --config wrangler.dev.jsonc",
+    "music": "python3 scripts/build_music.py"
   },
   "dependencies": {
     "@cloudflare/containers": "^0.3.7",

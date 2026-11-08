@@ -1,0 +1,109 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "family-holiday-special-dev",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/s/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "family-holiday-special-dev",
+      "database_id": "a898b3e1-6358-443f-8f62-6faa2a0b9930",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "family-holiday-special-dev-private",
+    },
+  ],
+  "workflows": [
+    {
+      "binding": "PRODUCTION",
+      "name": "family-holiday-production-dev",
+      "class_name": "ProductionWorkflow",
+    },
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false,
+    },
+    "traces": {
+      "enabled": false,
+    },
+  },
+  "vars": {
+    "MODE": "real",
+    "PAID_GENERATION_ENABLED": "false",
+    "APP_ORIGIN": "https://family-holiday-special-dev.juelzlax.workers.dev",
+    "CAMPAIGN_RETENTION_FLOOR": "2027-02-01T05:00:00Z",
+    "MAX_PROJECTS_PER_DAY": "3",
+    "MAX_NETWORK_PROJECTS_PER_DAY": "10",
+    "MAX_DESCRIPTION_REQUESTS": "10",
+    "MAX_JOB_COST_USD": "20",
+    "DAILY_BUDGET_USD": "40",
+    "MAX_PROVIDER_CONCURRENCY": "2",
+    "IMAGE_COST_USD": "1",
+    "VIDEO_COST_USD": "0.75",
+    "TEXT_COST_USD": "0.01",
+    "REVIEW_COST_USD": "0.02",
+    "RENDER_COST_USD": "0.50",
+    "TEXT_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "IMAGE_MODEL": "openai/gpt-image-2.6/flare/edit",
+    "VIDEO_MODEL": "minimax/h3-max/reference-to-video",
+    "PILOT_APPROVED": "true",
+    "MUSIC_CLEARED": "true",
+    "MOCK_SCENARIO": "success",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAF4UC7HRY7uzTHu-",
+    "FAL_WEBHOOK_USER_ID": "github|65n98hbnzl7z48nbjop48zpe",
+    "ASSET_SIGNING_KEY_VERSION": "1",
+    "REVIEW_ENABLED": "false",
+    "PROVIDER_OUTPUT_HOSTS": "fal.media",
+    "PRICE_CONFIG_VERIFIED": "true",
+    "PROCESSING_COST_USD": "0.02",
+    "RELEASE_CHANNEL": "dev",
+    "PREVIEW_MODE": "illustrative",
+  },
+  "ai": {
+    "binding": "AI",
+  },
+  "containers": [
+    {
+      "class_name": "MediaContainer",
+      "image": "./renderer/Dockerfile",
+      "max_instances": 2,
+      "instance_type": "standard-2",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RENDERER",
+        "class_name": "MediaContainer",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MediaContainer"],
+    },
+  ],
+  "account_id": "5123e5b48cbca84dedd3925e6085c866",
+  "workers_dev": true,
+  "preview_urls": false,
+}
