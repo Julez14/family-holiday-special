@@ -13,7 +13,7 @@ import { signingKey, illustrativePreviews } from './env';
 import { project } from './db';
 import { getPreset } from '../shared/presets';
 import { cleanup } from './cleanup';
-export { ProductionWorkflow } from './workflow';
+export { ProductionWorkflow, ProductionWorkflow as LiveProductionWorkflow } from './workflow';
 export { MediaContainer } from './container';
 const app = new Hono<{ Bindings: AppEnv }>();
 app.use('*', async (c, next) => {

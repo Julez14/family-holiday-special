@@ -5,7 +5,16 @@ export class AppError extends Error {
     message: string,
   ) {
     super(message);
+    this.name = `AppError:${code}`;
   }
+}
+// Workflows can deserialize a failed step as Error("AppError:code: message").
+export function workflowAppErrorCode(error: unknown): string | undefined {
+  if (error instanceof AppError) return error.code;
+  if (!(error instanceof Error)) return;
+  return [error.name, error.message]
+    .map((value) => /(?:^|:\s)AppError:(budget|processing|unavailable)(?::|$)/.exec(value)?.[1])
+    .find(Boolean);
 }
 export const unavailable = () =>
   new AppError(

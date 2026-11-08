@@ -12,6 +12,7 @@ import { DAY, usdMicros } from '../shared/policies';
 import { sign } from './crypto';
 import { boundedBody, serveAsset } from './media';
 import { generateDescriptions } from './descriptions';
+import { NATIVE_INSPECTOR } from './native-protocol';
 export const drafts = new Hono<{ Bindings: AppEnv }>();
 
 drafts.post('/projects', async (c) => {
@@ -210,7 +211,7 @@ drafts.put('/projects/:id/uploads/:ticket', async (c) => {
         throw new AppError(503, 'upload', 'Photo processing is unavailable.');
       const reservation = `processing:${t.id}`;
       await reserve(c.env, p.id, reservation, usdMicros(c.env.PROCESSING_COST_USD));
-      const normalized = await c.env.RENDERER.getByName('media-0').fetch(
+      const normalized = await c.env.RENDERER.getByName(NATIVE_INSPECTOR).fetch(
         new Request('http://renderer/normalize', {
           method: 'POST',
           body: bytes.slice().buffer,

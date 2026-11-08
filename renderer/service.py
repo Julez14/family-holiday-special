@@ -79,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers(); self.wfile.write(data)
 
     def do_GET(self):
-        self.reply(b'{"ok":true,"inputMode":"r2-stream-v1"}', 'application/json', 200 if self.path == '/health' else 404)
+        self.reply(b'{"ok":true,"inputMode":"r2-stream-v2"}', 'application/json', 200 if self.path == '/health' else 404)
 
     def do_DELETE(self):
         try:
@@ -96,10 +96,11 @@ class Handler(BaseHTTPRequestHandler):
             parts = self.path.split('/')
             staging = len(parts) == 4 and parts[1] == 'stage'
             staged = stage_file(parts[2], parts[3]) if staging else None
-            video = self.headers.get('X-Media-Kind') == 'video'
-            if self.path == '/normalize' or (self.path == '/inspect' and not video):
+            inspecting = self.path in ('/inspect/image', '/inspect/video')
+            video = self.path == '/inspect/video'
+            if self.path == '/normalize' or (inspecting and not video):
                 limit = 15*1024*1024
-            elif self.path == '/inspect' or staging:
+            elif inspecting or staging:
                 limit = 60*1024*1024 if video or (staging and parts[3].startswith('clip-')) else 30*1024*1024
             else:
                 limit = 64*1024
@@ -114,14 +115,12 @@ class Handler(BaseHTTPRequestHandler):
                     crop = json.loads(self.headers['X-Crop']) if self.headers.get('X-Crop') else None
                     output, size = normalize(data, crop)
                     self.reply(output, 'image/jpeg', extra={'X-Width':size[0], 'X-Height':size[1]}); return
-                if self.path == '/inspect':
-                    if self.headers.get('X-Media-Kind') not in ('image', 'video'):
-                        raise ValueError('Invalid inspection kind')
+                if inspecting:
                     file = root / 'input'; file.write_bytes(data)
                     self.reply(json.dumps(inspect(file, video)).encode(), 'application/json'); return
                 body = json.loads(data)
                 count = body.get('portraitCount')
-                if self.path not in ('/render','/poster') or body['version'] != 'ffmpeg-v1' or body.get('inputMode') != 'r2-stream-v1' or type(count) is not int or not 1 <= count <= 6:
+                if self.path not in ('/render','/poster') or body['version'] != 'ffmpeg-v1' or body.get('inputMode') != 'r2-stream-v2' or type(count) is not int or not 1 <= count <= 6:
                     raise ValueError('Invalid render contract')
                 root = session_root(body['session'])
                 portraits = [stage_file(body['session'], f'portrait-{i}.png') for i in range(count)]
@@ -136,8 +135,13 @@ class Handler(BaseHTTPRequestHandler):
             # Categories only: exceptions may contain signed URLs or private paths.
             category = type(error).__name__
             upstream_status = getattr(error, 'code', None)
+            reasons = {'Invalid render contract', 'Invalid request size', 'Truncated request',
+                       'Invalid chunk size', 'Invalid chunk trailer', 'Truncated chunk',
+                       'Empty request', 'Ambiguous body framing', 'Oversize image'}
             diagnostic = {'event': 'native_media_failed', 'operation': self.path,
                           'category': category,
+                          'reason': str(error) if str(error) in reasons else None,
+                          'input_mode': 'r2-stream-v2',
                           'upstream_status': upstream_status if isinstance(upstream_status, int) else None,
                           'chunked': self.headers.get('Transfer-Encoding', '').lower() == 'chunked',
                           'has_content_length': self.headers.get('Content-Length') is not None}

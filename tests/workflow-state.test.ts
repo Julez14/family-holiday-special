@@ -1,9 +1,10 @@
-import { beforeAll, afterAll, beforeEach, it, expect } from 'vitest';
+import { beforeAll, afterAll, beforeEach, it, expect, vi } from 'vitest';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { readFile, readdir } from 'node:fs/promises';
 import type { AppEnv } from '../src/server/env';
 import { reserve } from '../src/server/budget';
-import { prepareAttempt, claimSubmission } from '../src/server/attempts';
+import { prepareAttempt, claimSubmission, produceArtifact } from '../src/server/attempts';
+import type { WorkflowStep } from 'cloudflare:workers';
 import { recordCallback } from '../src/server/webhook';
 import { cleanup } from '../src/server/cleanup';
 import type { MediaInput } from '../src/server/fal';
@@ -228,4 +229,88 @@ it('advances through cleanup batches instead of repeatedly deleting the first 20
     )?.n,
   ).toBe(0);
   expect((await env.MEDIA.list({ prefix: `${id}/` })).objects).toHaveLength(0);
+});
+
+it('stops native infrastructure failures without buying replacement images', async () => {
+  const png = await readFile(new URL('../public/fixtures/portrait-1.png', import.meta.url));
+  const live = {
+    ...env,
+    MODE: 'real',
+    PAID_GENERATION_ENABLED: 'true',
+    APP_ORIGIN: 'https://studio.test',
+    FAL_KEY: 'test-only',
+    ASSET_SIGNING_SECRET: 'x'.repeat(64),
+    TURNSTILE_SECRET: 'test-only',
+    TURNSTILE_SITE_KEY: 'test-site',
+    FAL_WEBHOOK_USER_ID: 'test-user',
+    PILOT_APPROVED: 'true',
+    MUSIC_CLEARED: 'true',
+    PRICE_CONFIG_VERIFIED: 'true',
+    TEXT_MODEL: '@cf/google/gemma-4-26b-a4b-it',
+    TEXT_COST_USD: '0.001',
+    REVIEW_COST_USD: '0.001',
+    RENDER_COST_USD: '0.005',
+    PROCESSING_COST_USD: '0.001',
+    AI: {},
+    REVIEW_ENABLED: 'false',
+    PROVIDER_OUTPUT_HOSTS: 'fal.media',
+    RENDERER: {
+      getByName: () => ({
+        fetch: async (request: Request) => {
+          await request.arrayBuffer();
+          return new Response(JSON.stringify({ category: 'URLError' }), { status: 503 });
+        },
+      }),
+    },
+  } as unknown as AppEnv;
+  let submissions = 0;
+  const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (url.startsWith('https://queue.fal.run/') && init?.method === 'POST') {
+      submissions++;
+      return new Response(JSON.stringify({ request_id: 'known-completed-image' }));
+    }
+    if (url.endsWith('/status')) return new Response('{"status":"COMPLETED"}');
+    if (url.startsWith('https://queue.fal.run/'))
+      return new Response('{"images":[{"url":"https://v3.fal.media/test.png"}]}');
+    if (url === 'https://v3.fal.media/test.png') return new Response(png);
+    throw new Error('Unexpected test network request');
+  });
+  const step = {
+    do: async (_name: string, configOrRun: unknown, run?: () => Promise<unknown>) =>
+      (typeof configOrRun === 'function' ? (configOrRun as () => Promise<unknown>) : run!)(),
+    sleep: async () => {},
+  } as unknown as WorkflowStep;
+  // Node requires this streaming flag; the Workers Request constructor does not.
+  const NodeRequest = globalThis.Request;
+  vi.stubGlobal(
+    'Request',
+    class extends NodeRequest {
+      constructor(input: RequestInfo | URL, init: RequestInit = {}) {
+        super(input, { ...init, duplex: 'half' } as RequestInit);
+      }
+    },
+  );
+  try {
+    await expect(
+      produceArtifact(
+        live,
+        step,
+        id,
+        'portrait-0',
+        {
+          kind: 'image',
+          input: { prompt: 'Test portrait', portrait: true, referenceUrls: [] },
+        },
+        'portrait-1.png',
+      ),
+    ).rejects.toMatchObject({ code: 'processing' });
+    expect(submissions).toBe(1);
+    expect(
+      (await env.DB.prepare('SELECT COUNT(*) AS n FROM attempts').first<{ n: number }>())?.n,
+    ).toBe(1);
+  } finally {
+    fetchMock.mockRestore();
+    vi.unstubAllGlobals();
+  }
 });

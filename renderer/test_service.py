@@ -40,8 +40,8 @@ class ServiceContractTests(unittest.TestCase):
 
     def test_worker_streams_fixed_and_chunked_media_into_inspection(self):
         for chunked in (False, True):
-            status, data = self.request('POST', '/inspect', self.portrait(), chunked,
-                                        {'Content-Type': 'application/octet-stream', 'X-Media-Kind': 'image'})
+            status, data = self.request('POST', '/inspect/image', self.portrait(), chunked,
+                                        {'Content-Type': 'application/octet-stream'})
             self.assertEqual(status, 200, data)
             result = json.loads(data)
             self.assertEqual((result['width'], result['height']), (100, 150))
@@ -61,7 +61,7 @@ class ServiceContractTests(unittest.TestCase):
                 for name, contents in files.items():
                     status, data = self.request('POST', f'/stage/{session}/{name}', contents, True)
                     self.assertEqual(status, 200, data)
-                body = json.dumps({'version': 'ffmpeg-v1', 'inputMode': 'r2-stream-v1', 'session': session, 'portraitCount': 1}).encode()
+                body = json.dumps({'version': 'ffmpeg-v1', 'inputMode': 'r2-stream-v2', 'session': session, 'portraitCount': 1}).encode()
                 status, data = self.request('POST', '/render', body)
                 self.assertEqual(status, 200, data[:200])
                 final = root / 'final.mp4'; final.write_bytes(data); verify_final(final)

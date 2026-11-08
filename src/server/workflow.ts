@@ -7,7 +7,8 @@ import { produceArtifact, asset, ArtifactFailure } from './attempts';
 import { inferenceUrl, boundedBody } from './media';
 import { HolidayRenderer } from './render';
 import { reserve, settle } from './budget';
-import { AppError } from './errors';
+import { AppError, workflowAppErrorCode } from './errors';
+import { NATIVE_INSPECTOR, NATIVE_INPUT_MODE } from './native-protocol';
 export type ProductionParams = { projectId: string };
 export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionParams> {
   async run(event: WorkflowEvent<ProductionParams>, step: WorkflowStep) {
@@ -25,7 +26,7 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
       ).run();
     };
     try {
-      const m = await step.do('load-immutable-manifest', async () => {
+      const m = await step.do('load-immutable-manifest-r2-stream-v1', async () => {
         const p = await project(env, id);
         if (!p.manifest || !p.manifest_hash || ['ready', 'failed'].includes(p.state))
           throw new ArtifactFailure('technical');
@@ -45,6 +46,33 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
         );
         return manifest;
       });
+      if (env.MODE === 'real')
+        await step.do('native-preflight-r2-stream-v2', async () => {
+          if (!('RENDERER' in env))
+            throw new AppError(503, 'processing', 'Native renderer binding unavailable.');
+          const reservation = `native-preflight:${crypto.randomUUID()}`;
+          await reserve(env, id, reservation, usdMicros(env.PROCESSING_COST_USD));
+          try {
+            const response = await env.RENDERER.getByName(NATIVE_INSPECTOR).fetch(
+              new Request('http://renderer/health'),
+            );
+            const health = (await response.json().catch(() => ({}))) as { inputMode?: string };
+            if (!response.ok || health.inputMode !== NATIVE_INPUT_MODE) {
+              const observed =
+                typeof health.inputMode === 'string' && /^[a-z0-9-]{1,50}$/.test(health.inputMode)
+                  ? health.inputMode
+                  : 'missing';
+              throw new AppError(
+                503,
+                'processing',
+                `Expected native r2-stream-v2; received ${observed} (HTTP ${response.status}).`,
+              );
+            }
+            return { inputMode: health.inputMode };
+          } finally {
+            await settle(env, reservation);
+          }
+        });
       await step.do('drawing-phase', () => phase('creating_cast'));
       const portraits: Record<string, string> = {};
       for (const [i, person] of m.cast.entries()) {
@@ -56,7 +84,7 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
           if (!object) throw new ArtifactFailure('technical');
           const reservation = `crop:${crypto.randomUUID()}`;
           await reserve(env, id, reservation, usdMicros(env.PROCESSING_COST_USD));
-          const cropped = await env.RENDERER.getByName('media-0').fetch(
+          const cropped = await env.RENDERER.getByName(NATIVE_INSPECTOR).fetch(
             new Request('http://renderer/normalize', {
               method: 'POST',
               body: object.body,
@@ -255,9 +283,7 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
       const category =
         error instanceof ArtifactFailure
           ? error.category
-          : error instanceof AppError
-            ? error.code
-            : 'technical';
+          : (workflowAppErrorCode(error) ?? 'technical');
       await step.do('record-terminal-failure', async () => {
         const now = Date.now();
         await statement(

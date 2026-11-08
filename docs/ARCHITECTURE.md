@@ -15,7 +15,7 @@ flowchart LR
     Final --> Browser
 ```
 
-The diagram shows logical data flow. Provider results are actually copied into R2 by the Workflow's checked output-storage step; fal does not receive R2 write credentials. The Worker authorizes final playback/downloads and signs short-lived asset-scoped inference URLs. The renderer has a binding-only HTTP interface; it does not expose a public editing API.
+The diagram shows logical data flow. Provider results are copied into R2 by the Workflow's checked output-storage step; fal does not receive R2 write credentials. The Worker authorizes final playback/downloads and signs short-lived asset-scoped inference URLs for fal. The renderer receives R2 byte streams through its private Durable Object binding. It has no Internet access or public editing API.
 
 ## Work performed by each service
 
@@ -29,7 +29,7 @@ The container handles operations that the selected fal generation endpoints do n
 - Build a two-second all-cast end card and poster from the accepted portraits.
 - Remove every generated clip's soundtrack, add only the selected original instrumental track and encode the final 20-second H.264/AAC MP4.
 
-See [service.py](../renderer/service.py) for the internal HTTP contract, [media.py](../renderer/media.py) for native processing and [render.ts](../src/server/render.ts) for Worker orchestration. The temporary media files are discarded after each operation; durable media lives in private R2.
+See [service.py](../renderer/service.py) for the internal HTTP contract, [media.py](../renderer/media.py) for native processing and [render.ts](../src/server/render.ts) for Worker orchestration. Inspection receives one bounded image/video stream. Assembly stages each clip, portrait and music file separately under an opaque render-session UUID, so no request must buffer the entire project in a Worker. A `finally` handler removes staged files on success or failure. Durable media lives in private R2.
 
 ## Why this runs outside an ordinary Worker
 

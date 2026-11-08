@@ -2,6 +2,7 @@ import type { AppEnv } from './env';
 import type { Manifest } from '../shared/contracts';
 import { storeOutput } from './output-storage';
 import { mockFile, ArtifactFailure, inspect, asset } from './attempts';
+import { NATIVE_RENDERER, NATIVE_INPUT_MODE } from './native-protocol';
 export interface Renderer {
   render(
     projectId: string,
@@ -39,7 +40,7 @@ export class HolidayRenderer implements Renderer {
     }
     if (!('RENDERER' in this.env)) throw new ArtifactFailure('render');
     const session = crypto.randomUUID();
-    const renderer = this.env.RENDERER.getByName('media-1');
+    const renderer = this.env.RENDERER.getByName(NATIVE_RENDERER);
     const stage = async (name: string, object: R2ObjectBody) => {
       const response = await renderer.fetch(
         new Request(`http://renderer/stage/${session}/${name}`, {
@@ -70,7 +71,7 @@ export class HolidayRenderer implements Renderer {
       await stage('music.wav', music);
       const body = JSON.stringify({
         version: 'ffmpeg-v1',
-        inputMode: 'r2-stream-v1',
+        inputMode: NATIVE_INPUT_MODE,
         session,
         portraitCount: portraits.length,
       });

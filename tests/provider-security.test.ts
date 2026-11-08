@@ -3,6 +3,20 @@ import { it, expect, vi } from 'vitest';
 import { verifyFalSignature, outputUrl, falInput, FalQueue } from '../src/server/fal';
 import { sign, verifyHmac, sha256 } from '../src/server/crypto';
 import { validateDescriptions } from '../src/server/descriptions';
+import { AppError, workflowAppErrorCode } from '../src/server/errors';
+
+it('preserves known failure categories across serialized Workflow step errors', () => {
+  expect(workflowAppErrorCode(new AppError(503, 'processing', 'Unavailable.'))).toBe('processing');
+  for (const code of ['budget', 'processing', 'unavailable']) {
+    expect(workflowAppErrorCode(new Error(`AppError:${code}: stopped`))).toBe(code);
+    const renamed = new Error('stopped');
+    renamed.name = `AppError:${code}`;
+    expect(workflowAppErrorCode(renamed)).toBe(code);
+  }
+  expect(workflowAppErrorCode(new Error('Unexpected provider failure'))).toBeUndefined();
+  expect(workflowAppErrorCode(new Error('AppError:processing_extra: stopped'))).toBeUndefined();
+  expect(workflowAppErrorCode('AppError:processing')).toBeUndefined();
+});
 it('verifies authentic Ed25519 callbacks and rejects tampering, wrong accounts and stale deliveries', async () => {
   const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
   const jwk = await crypto.subtle.exportKey('jwk', keys.publicKey);

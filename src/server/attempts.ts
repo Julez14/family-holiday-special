@@ -9,6 +9,7 @@ import { PROMPT_VERSION, reviewSchema } from '../shared/contracts';
 import { recordCallback } from './webhook';
 import { storeOutput } from './output-storage';
 import { AppError } from './errors';
+import { NATIVE_INSPECTOR } from './native-protocol';
 export class ArtifactFailure extends Error {
   constructor(public category: string) {
     super(category);
@@ -167,14 +168,13 @@ export async function inspect(
   if (media.project_id !== projectId) throw new ArtifactFailure('technical');
   const object = await env.MEDIA.get(media.r2_key);
   if (!object) throw new ArtifactFailure('technical');
-  const r = await env.RENDERER.getByName('media-0').fetch(
-    new Request('http://renderer/inspect', {
+  const r = await env.RENDERER.getByName(NATIVE_INSPECTOR).fetch(
+    new Request(`http://renderer/inspect/${video ? 'video' : 'image'}`, {
       method: 'POST',
       body: object.body,
       headers: {
         'content-type': 'application/octet-stream',
         'content-length': String(object.size),
-        'x-media-kind': video ? 'video' : 'image',
       },
     }),
   );
@@ -192,9 +192,11 @@ export async function inspect(
     ];
     if (r.status >= 500 || r.status === 429 || infrastructure.includes(diagnostic.category ?? ''))
       throw new AppError(503, 'processing', 'Native media inspection is temporarily unavailable.');
-    throw new ArtifactFailure('technical');
+    throw new AppError(503, 'processing', `Media inspector returned HTTP ${r.status}.`);
   }
   const result = (await r.json()) as Inspection;
+  if (!result.width || !result.height)
+    throw new AppError(503, 'processing', 'Media inspector returned incomplete dimensions.');
   if (
     !result.width ||
     !result.height ||
@@ -433,8 +435,9 @@ export async function produceArtifact(
                 assetId,
               ).run();
             } catch (e) {
-              if (e instanceof AppError && ['budget', 'processing'].includes(e.code)) throw e;
-              return { category: 'technical' };
+              if (e instanceof ArtifactFailure) return { category: 'technical' };
+              // Infrastructure/programming errors must never buy replacement media.
+              throw e;
             }
           }
           await project(env, projectId);
