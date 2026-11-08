@@ -1,13 +1,14 @@
 import type { WorkflowStep } from 'cloudflare:workers';
 import type { AppEnv } from './env';
-import { statement, project, saveAsset, type AttemptRow, type AssetRow } from './db';
+import { statement, project, type AttemptRow, type AssetRow } from './db';
 import { FalQueue, SubmissionUnknown, ProviderRejected, outputUrl, type MediaInput } from './fal';
 import { reserve, settle, realReady } from './budget';
-import { boundedBody, inferenceUrl } from './media';
+import { inferenceUrl } from './media';
 import { usdMicros, RETRY_CAPS, canRepair } from '../shared/policies';
 import { sha256 } from './crypto';
 import { PROMPT_VERSION, reviewSchema } from '../shared/contracts';
 import { recordCallback } from './webhook';
+import { storeOutput } from './output-storage';
 import { AppError } from './errors';
 export class ArtifactFailure extends Error {
   constructor(public category: string) {
@@ -220,6 +221,8 @@ async function advisoryReview(
         },
       ],
       max_completion_tokens: 128,
+      chat_template_kwargs: { enable_thinking: false },
+      skip_special_tokens: true,
       response_format: { type: 'json_object' },
     });
     const o = raw as { response?: string; choices?: { message?: { content?: string } }[] };
@@ -381,17 +384,14 @@ export async function produceArtifact(
               { redirect: 'error', signal: AbortSignal.timeout(30000) },
             );
           if (!response.ok) return { category: 'technical' };
-          const bytes = await boundedBody(
-            response,
-            media.kind === 'video' ? 60 * 1024 * 1024 : 15 * 1024 * 1024,
-          );
           const mime = media.kind === 'video' ? 'video/mp4' : 'image/png';
-          const assetId = await saveAsset(
+          const assetId = await storeOutput(
             env,
             projectId,
             media.kind === 'video' ? 'clip' : media.input.portrait ? 'portrait' : 'frame',
-            bytes,
+            response,
             mime,
+            media.kind === 'video' ? 60 * 1024 * 1024 : 15 * 1024 * 1024,
           );
           if (env.MODE === 'real') {
             try {

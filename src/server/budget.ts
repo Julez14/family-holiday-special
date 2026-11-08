@@ -12,6 +12,7 @@ export function realReady(env: AppEnv) {
     env.ASSET_SIGNING_SECRET.length < 32 ||
     env.IMAGE_MODEL !== 'openai/gpt-image-2.6/flare/edit' ||
     env.VIDEO_MODEL !== 'minimax/h3-max/reference-to-video' ||
+    env.TEXT_MODEL !== '@cf/google/gemma-4-26b-a4b-it' ||
     !env.TURNSTILE_SECRET ||
     !('AI' in env) ||
     !('RENDERER' in env) ||

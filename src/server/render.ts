@@ -1,7 +1,7 @@
 import type { AppEnv } from './env';
 import type { Manifest } from '../shared/contracts';
-import { saveAsset } from './db';
-import { boundedBody, inferenceUrl } from './media';
+import { storeOutput } from './output-storage';
+import { inferenceUrl } from './media';
 import { mockFile, ArtifactFailure, inspect } from './attempts';
 import { sign } from './crypto';
 import { signingKey } from './env';
@@ -20,20 +20,22 @@ export class HolidayRenderer implements Renderer {
       const video = await mockFile(this.env, `${manifest.preset}-${manifest.cast.length}.mp4`);
       const poster = await mockFile(this.env, `${manifest.preset}-poster.jpg`);
       return {
-        videoId: await saveAsset(
+        videoId: await storeOutput(
           this.env,
           projectId,
           'video',
-          await boundedBody(video, 60 * 1024 * 1024),
+          video,
           'video/mp4',
+          60 * 1024 * 1024,
           { width: 1280, height: 720, duration: 20 },
         ),
-        posterId: await saveAsset(
+        posterId: await storeOutput(
           this.env,
           projectId,
           'poster',
-          await boundedBody(poster, 5 * 1024 * 1024),
+          poster,
           'image/jpeg',
+          5 * 1024 * 1024,
           { width: 1280, height: 720 },
         ),
       };
@@ -56,12 +58,13 @@ export class HolidayRenderer implements Renderer {
       new Request('http://renderer/render', { method: 'POST', body, headers }),
     );
     if (!r.ok) throw new ArtifactFailure('render');
-    const videoId = await saveAsset(
+    const videoId = await storeOutput(
       this.env,
       projectId,
       'video',
-      await boundedBody(r, 60 * 1024 * 1024),
+      r,
       'video/mp4',
+      60 * 1024 * 1024,
       { width: 1280, height: 720, duration: 20 },
     );
     const checked = await inspect(this.env, projectId, videoId, true);
@@ -75,12 +78,13 @@ export class HolidayRenderer implements Renderer {
       new Request('http://renderer/poster', { method: 'POST', body, headers }),
     );
     if (!p.ok) throw new ArtifactFailure('render');
-    const posterId = await saveAsset(
+    const posterId = await storeOutput(
       this.env,
       projectId,
       'poster',
-      await boundedBody(p, 5 * 1024 * 1024),
+      p,
       'image/png',
+      5 * 1024 * 1024,
       { width: 1280, height: 720 },
     );
     return { videoId, posterId };

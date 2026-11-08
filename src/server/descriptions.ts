@@ -79,6 +79,8 @@ export async function generateDescriptions(
           },
         ],
         max_completion_tokens: ids.length === 1 ? 128 : 768,
+        chat_template_kwargs: { enable_thinking: false },
+        skip_special_tokens: true,
         response_format: { type: 'json_object' },
       });
     } finally {
