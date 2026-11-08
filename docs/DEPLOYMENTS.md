@@ -20,7 +20,7 @@ Deployment was explicitly authorized on November 7, 2026 (Toronto), after the in
 - Local app: https://localhost:8787 (`npm run dev` on the dev branch).
 - Backend: https://family-holiday-special-dev.juelzlax.workers.dev; app pages redirect to hosted mock main, and private API routes require local operator signatures.
 - Worker/configuration: `family-holiday-special-dev` / `wrangler.dev.jsonc`
-- Cloudflare version: `fdec5584-960f-4b7a-a125-1645439cd728`
+- Cloudflare version: `d59eab16-9fda-4899-a812-6e4225b65f57`
 - D1: `family-holiday-special-dev` (`a898b3e1-6358-443f-8f62-6faa2a0b9930`); all three migrations applied.
 - Private R2: `family-holiday-special-dev-private`; three original instrumental WAVs installed.
 - Active Workflow: `family-holiday-special-dev-production` / `LiveProductionWorkflow`. The earlier prototype Workflow is no longer bound to the app.
@@ -61,3 +61,9 @@ The hosted main app remains unchanged in mock mode. Local dev now serves React d
 The dev description prompt now leads with a distinctive personality and one expressive mannerism, varies sentence openings and attitudes, avoids generic subjects such as “The performer,” and discourages miniature plots or copying existing descriptions. Photos/names remain excluded. Two bounded real Gemma calls using the exact updated prompt passed: a three-character batch and a single-character request supplied with the batch as existing context. All returned valid ID-mapped JSON within the existing token limits, with distinct openings and behaviors. These checks used synthetic IDs and text only; they did not alter a user project or invoke fal media generation. The existing 39 tests, TypeScript and frontend build passed. Existing saved descriptions change only when explicitly replaced through Choose for me.
 
 Dev automatic descriptions now allow 100 requests per project. The higher limit applies to existing drafts using their retained counters. The Worker configuration was deployed and its live binding verified; no model calls were needed for this configuration change.
+
+### Moderation error reporting
+
+The dev backend preserves allowlisted `content_policy_violation` and `model_moderated` codes from submission errors, polled results and verified callbacks. Error callbacks store normalized codes rather than raw messages/prompts/URLs. Sparse callbacks can retrieve details from their existing request receipt; this never submits new work. Unknown validation errors stay generic, and moderation remains terminal without automatic replacement generations. Failed project responses include a stable error code and a clear content-screening message; desktop and mobile show a dedicated moderation heading. The provider's exact trigger is not inferred.
+
+A previously verified moderation failure was reclassified in place so its owner can see the explanation on refresh. Only failure metadata changed; saved artwork, retention, budget records and terminal job state were preserved.

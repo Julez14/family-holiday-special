@@ -17,8 +17,8 @@ Real dev uses GPT Image 2.6 Flare Edit for canonical portraits and four frames, 
 | Check | Result |
 | --- | --- |
 | TypeScript and Vite build | Passed |
-| Domain/security/D1 tests | 39 passed, including all 18 preset/cast-size combinations, signatures, exact description mappings, concurrent reservations, callback races, retry limits, cleanup, serialized Workflow errors, local request signatures and native failures without replacement purchases |
-| Browser/API integration | 4 passed: two API scenarios, desktop Chromium, mobile WebKit at 360 px |
+| Domain/security/D1 tests | 43 passed, including all 18 preset/cast-size combinations, signatures, exact description mappings, concurrent reservations, callback races, retry limits, cleanup, serialized Workflow errors, local request signatures and native failures without replacement purchases |
+| Browser/API integration | 8 passed: two API scenarios, full desktop/mobile flows and moderation failure screens for both error-code combinations |
 | Native media contract | 8 passed: normalization/EXIF, dimensions/formats, all-six-character end card, 20-second edit/audio isolation, bounded fixed/chunked HTTP streams, private staging/render/poster/cleanup, and path/URL rejection |
 | Durable scenario runner | 6 passed: early callback, missing callback, selective clip repair, unknown submission, exhausted retries and provider rejection |
 | Docker/native deployment | Linux/amd64 image built and deployed; verified full rollout of the private streaming protocol |
