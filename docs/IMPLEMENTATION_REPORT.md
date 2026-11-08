@@ -2,6 +2,8 @@
 
 Date: November 7, 2026
 
+Deployment addendum: [main is now hosted in mock mode, and the dev branch has isolated live-provider configuration](DEPLOYMENTS.md). The owner authorized paid operation after the initial build. Dev's Docker image builds, all 36 current tests and four browser/API checks pass, secrets and original instrumental music are installed. Cloudflare requires Workers Paid before the renderer can be provisioned; dev generation remains paused and no paid end-to-end inference has yet been run. The historical initial-build results below describe the earlier state.
+
 ## Delivered
 
 A working React/TypeScript/Vite application and Cloudflare Worker API, private D1/R2 storage, durable Workflows, typed fal queue integration, Workers AI descriptions/advisory review, and one FFmpeg/Pillow Container renderer. The two supplied Markdown documents are at the repository root with their relative links intact. The model decision record now distinguishes schema evidence, local media tests and the unrun real-model pilot.

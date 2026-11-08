@@ -4,6 +4,8 @@ Your people. A little holiday chaos. A mobile-first React app that turns **1–6
 
 **Hosted main:** https://family-holiday-special.juelzlax.workers.dev (mock mode).
 
+**Development branch:** `dev`, with isolated live-provider configuration in `wrangler.dev.jsonc`. See [paid development setup](docs/PAID_DEVELOPMENT.md) for services, spending reservations, music and the explicitly paid integration test. The Cloudflare Container deployment currently awaits enabling Workers Paid on the account; generation stays paused until that dependency is available.
+
 **Status:** the local and hosted mock experience works end to end, including persistent jobs, playback, sharing, and deletion. Real fal / Workers AI / Cloudflare Container adapters are implemented behind disabled production gates. The main Worker is deployed; paid model inference remains disabled on main. Generated likeness, model comparisons and the human quality pilot are still unverified. Mock results are original illustrative animations, explicitly labeled throughout the app.
 
 The product authority is [Family_Christmas_Cartoon_PRD.md](Family_Christmas_Cartoon_PRD.md), with [Model_Selection_Decisions.md](Model_Selection_Decisions.md) alongside it. See [the implementation report](docs/IMPLEMENTATION_REPORT.md) for evidence and remaining launch inputs.
