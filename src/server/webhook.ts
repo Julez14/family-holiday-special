@@ -30,6 +30,13 @@ export async function recordCallback(
   await env.DB.batch([
     statement(
       env,
+      'UPDATE attempts SET completed_at=COALESCE(completed_at,?) WHERE id=? AND (request_id IS NULL OR request_id=?)',
+      Date.now(),
+      attemptId,
+      callback.request_id,
+    ),
+    statement(
+      env,
       'INSERT OR IGNORE INTO webhook_inbox(request_id,attempt_id,status,payload,received_at) VALUES(?,?,?,?,?)',
       callback.request_id,
       attemptId,
@@ -39,8 +46,9 @@ export async function recordCallback(
     ),
     statement(
       env,
-      "UPDATE attempts SET request_id=?,state='queued',updated_at=? WHERE id=? AND request_id IS NULL AND state IN ('submitting','submission_unknown')",
+      "UPDATE attempts SET request_id=?,state='queued',updated_at=?,completed_at=COALESCE(completed_at,?) WHERE id=? AND request_id IS NULL AND state IN ('submitting','submission_unknown')",
       callback.request_id,
+      Date.now(),
       Date.now(),
       attemptId,
     ),

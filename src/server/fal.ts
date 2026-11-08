@@ -22,7 +22,13 @@ export interface QueueProvider {
   poll(
     model: string,
     requestId: string,
-  ): Promise<{ state: 'pending' | 'completed' | 'failed'; payload?: unknown; category?: string }>;
+  ): Promise<{
+    state: 'pending' | 'completed' | 'failed';
+    payload?: unknown;
+    category?: string;
+    providerState?: string;
+    inferenceMs?: number;
+  }>;
 }
 export class SubmissionUnknown extends Error {}
 export class ProviderRejected extends Error {
@@ -103,13 +109,21 @@ export class FalQueue implements QueueProvider {
     if (!r.ok) return { state: 'pending' as const };
     const s = JSON.parse(new TextDecoder().decode(await boundedBody(r, 256 * 1024))) as {
       status: string;
+      metrics?: { inference_time?: number };
     };
-    if (s.status !== 'COMPLETED') return { state: 'pending' as const };
+    if (s.status !== 'COMPLETED') return { state: 'pending' as const, providerState: s.status };
     const result = await fetch(base, { headers, signal: AbortSignal.timeout(15000) });
     if (!result.ok)
       return { state: 'failed' as const, category: result.status === 422 ? 'safety' : 'transient' };
     return {
       state: 'completed' as const,
+      providerState: s.status,
+      inferenceMs:
+        typeof s.metrics?.inference_time === 'number' &&
+        Number.isFinite(s.metrics.inference_time) &&
+        s.metrics.inference_time >= 0
+          ? s.metrics.inference_time * 1000
+          : undefined,
       payload: JSON.parse(
         new TextDecoder().decode(await boundedBody(result, 2 * 1024 * 1024)),
       ) as unknown,

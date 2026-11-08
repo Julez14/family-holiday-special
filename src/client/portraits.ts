@@ -52,11 +52,12 @@ export async function preparePortrait(file: File): Promise<PreparedPortrait> {
       manual = true;
     }
     if (detected) {
+      // Assess the normalized pixels that actually reach inference, not discarded camera pixels.
       const faces = detected.map((d) => {
         const b = d.boundingBox!;
         return {
-          width: b.width / scale,
-          height: b.height / scale,
+          width: b.width,
+          height: b.height,
           clipped:
             b.originX < 2 ||
             b.originY < 2 ||

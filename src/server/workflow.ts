@@ -14,7 +14,8 @@ export class ProductionWorkflow extends WorkflowEntrypoint<AppEnv, ProductionPar
     const id = event.payload.projectId;
     const env = this.env;
     const phase = async (state: ProjectState) => {
-      await project(env, id);
+      const current = await project(env, id);
+      await recordEvent(env, `phase_${state}`, id, current.preset);
       await statement(
         env,
         "UPDATE projects SET state=?,updated_at=? WHERE id=? AND state NOT IN ('ready','failed','deleting','deleted','expired')",

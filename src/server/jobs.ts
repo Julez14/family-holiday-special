@@ -24,6 +24,8 @@ jobs.post('/projects/:id/generate', async (c) => {
   realReady(c.env);
   if (!p.preset) throw new AppError(400, 'preset', 'Choose one Christmas scene.');
   const cast = (await characters(c.env, p.id)).map(characterInput);
+  if (!cast.length)
+    throw new AppError(400, 'cast', 'Add one clear individual portrait for each person.');
   const manifest = compileManifest(p.preset, cast, p.seed);
   const cost = await statement(
     c.env,
@@ -66,8 +68,11 @@ jobs.post('/projects/:id/generate', async (c) => {
         'Please complete the quick security check and try again.',
       );
     for (const key of [
-      manifest.musicKey,
-      ...['snowball', 'giftwrap', 'danceoff'].map((id) => `samples/${id}.mp4`),
+      ...['snowball', 'giftwrap', 'danceoff'].flatMap((id) => [
+        `music/${id}.wav`,
+        `samples/${id}.mp4`,
+        `samples/${id}.jpg`,
+      ]),
     ])
       if (!(await c.env.MEDIA.head(key)))
         throw new AppError(

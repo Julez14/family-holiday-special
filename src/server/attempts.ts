@@ -89,7 +89,24 @@ export async function submitOnce(env: AppEnv, attemptId: string, media: MediaInp
   if (!a) throw new ArtifactFailure('technical');
   if (a.state !== 'submitting') return;
   // This function is invoked only by a no-retry Workflow step after an atomic claim.
-  realReady(env);
+  try {
+    realReady(env);
+  } catch (error) {
+    await statement(
+      env,
+      "UPDATE attempts SET state='failed',error_category='unavailable',updated_at=? WHERE id=? AND request_id IS NULL",
+      Date.now(),
+      a.id,
+    ).run();
+    await settle(env, a.id, true);
+    throw error;
+  }
+  await statement(
+    env,
+    'UPDATE attempts SET submitted_at=COALESCE(submitted_at,?) WHERE id=?',
+    Date.now(),
+    a.id,
+  ).run();
   try {
     const requestId =
       env.MODE === 'mock'
@@ -176,7 +193,13 @@ async function advisoryReview(
 ) {
   if (!('AI' in env) || env.REVIEW_ENABLED !== 'true' || !inspection.samples?.length)
     return 'uncertain';
-  const reservation = `review:${attempt.id}`;
+  const claim = await statement(
+    env,
+    'UPDATE attempts SET review_calls=review_calls+1 WHERE id=? AND review_calls<2 RETURNING review_calls',
+    attempt.id,
+  ).first<{ review_calls: number }>();
+  if (!claim) return 'uncertain';
+  const reservation = `review:${attempt.id}:${claim.review_calls}`;
   await reserve(env, attempt.project_id, reservation, usdMicros(env.REVIEW_COST_USD));
   try {
     const raw = await env.AI.run(env.TEXT_MODEL as Parameters<Ai['run']>[0], {
@@ -224,6 +247,7 @@ export async function produceArtifact(
     );
     if (a.state === 'accepted' && a.output_asset_id) return a.output_asset_id;
     let claimed = false;
+    let slotReady = false;
     for (let slot = 0; slot < 100; slot++) {
       const state = await step.do(`${tag}-claim-${slot}`, async () => {
         await project(env, projectId);
@@ -235,9 +259,22 @@ export async function produceArtifact(
       });
       if (state !== 'busy') {
         claimed = state === 'claimed';
+        slotReady = true;
         break;
       }
       await step.sleep(`${tag}-slot-${slot}`, '5 seconds');
+    }
+    if (!slotReady) {
+      await step.do(`${tag}-capacity-timeout`, async () => {
+        await statement(
+          env,
+          "UPDATE attempts SET state='failed',error_category='timeout',updated_at=? WHERE id=? AND state='prepared'",
+          Date.now(),
+          a.id,
+        ).run();
+        await settle(env, a.id, true);
+      });
+      throw new ArtifactFailure('timeout');
     }
     if (claimed)
       await step.do(
@@ -287,6 +324,16 @@ export async function produceArtifact(
           // A missing callback queries the known request. It never submits replacement work.
           try {
             const polled = await new FalQueue(env).poll(row.model, row.request_id);
+            await statement(
+              env,
+              'UPDATE attempts SET started_at=CASE WHEN ?=1 THEN COALESCE(started_at,?) ELSE started_at END,completed_at=CASE WHEN ?=1 THEN COALESCE(completed_at,?) ELSE completed_at END,provider_inference_ms=COALESCE(?,provider_inference_ms) WHERE id=?',
+              polled.providerState === 'IN_PROGRESS' ? 1 : 0,
+              Date.now(),
+              polled.state === 'completed' ? 1 : 0,
+              Date.now(),
+              polled.inferenceMs ?? null,
+              a.id,
+            ).run();
             return {
               state: polled.state,
               category: polled.category,
@@ -370,8 +417,9 @@ export async function produceArtifact(
           await project(env, projectId);
           await statement(
             env,
-            "UPDATE attempts SET state='accepted',output_asset_id=?,updated_at=? WHERE id=?",
+            "UPDATE attempts SET state='accepted',output_asset_id=?,updated_at=?,completed_at=COALESCE(completed_at,?) WHERE id=?",
             assetId,
+            Date.now(),
             Date.now(),
             a.id,
           ).run();

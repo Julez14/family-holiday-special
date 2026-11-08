@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, beforeEach, it, expect } from 'vitest';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import type { AppEnv } from '../src/server/env';
 import { reserve } from '../src/server/budget';
 import { prepareAttempt, claimSubmission } from '../src/server/attempts';
@@ -31,19 +31,17 @@ const media: MediaInput = {
 beforeAll(async () => {
   const bindings = await mf.getBindings<AppEnv>();
   const { DB, MEDIA } = bindings;
-  const bookkeeping = await readFile(
-    new URL('../migrations/0002_cleanup_bookkeeping.sql', import.meta.url),
-    'utf8',
-  );
-  const migration = await readFile(
-    new URL('../migrations/0001_initial.sql', import.meta.url),
-    'utf8',
-  );
-  for (const sql of (migration + bookkeeping)
-    .split(';')
-    .map((s) => s.trim())
-    .filter(Boolean))
-    await DB.prepare(sql).run();
+  const files = (await readdir(new URL('../migrations/', import.meta.url)))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  for (const file of files) {
+    const migration = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
+    for (const sql of migration
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean))
+      await DB.prepare(sql).run();
+  }
   env = {
     ...bindings,
     DB,
@@ -60,6 +58,8 @@ beforeAll(async () => {
 }, 20000);
 afterAll(() => mf.dispose());
 beforeEach(async () => {
+  const stored = await env.MEDIA.list();
+  if (stored.objects.length) await env.MEDIA.delete(stored.objects.map((o) => o.key));
   await env.DB.batch(
     [
       'webhook_inbox',
@@ -189,4 +189,43 @@ it('cleans expired sources while finished playback objects and shares retain ind
         .first<{ state: string }>()
     )?.state,
   ).toBe('ready');
+});
+
+it('advances through cleanup batches instead of repeatedly deleting the first 200 rows', async () => {
+  const now = Date.now();
+  await env.DB.prepare("UPDATE projects SET state='ready',expires_at=? WHERE id=?")
+    .bind(now + 86400000, id)
+    .run();
+  const rows = Array.from({ length: 201 }, (_, i) => ({
+    id: `expired-${i}`,
+    key: `${id}/expired-${i}`,
+  }));
+  await Promise.all(rows.map((row) => env.MEDIA.put(row.key, 'expired fixture')));
+  for (let offset = 0; offset < rows.length; offset += 40)
+    await env.DB.batch(
+      rows
+        .slice(offset, offset + 40)
+        .map((row) =>
+          env.DB.prepare(
+            "INSERT INTO assets(id,project_id,kind,r2_key,mime,created_at,expires_at) VALUES(?,?,'source',?,'image/png',?,?)",
+          ).bind(row.id, id, row.key, now, now - 1),
+        ),
+    );
+  await cleanup(env);
+  expect(
+    (
+      await env.DB.prepare('SELECT COUNT(*) AS n FROM assets WHERE removed_at IS NULL').first<{
+        n: number;
+      }>()
+    )?.n,
+  ).toBe(1);
+  await cleanup(env);
+  expect(
+    (
+      await env.DB.prepare('SELECT COUNT(*) AS n FROM assets WHERE removed_at IS NULL').first<{
+        n: number;
+      }>()
+    )?.n,
+  ).toBe(0);
+  expect((await env.MEDIA.list({ prefix: `${id}/` })).objects).toHaveLength(0);
 });

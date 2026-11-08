@@ -108,7 +108,7 @@ app.onError((e, c) => {
       400,
     );
   if (e instanceof AppError) {
-    if (c.req.path.startsWith('/s/'))
+    if (c.req.path.startsWith('/s/') && ['GET', 'HEAD'].includes(c.req.method))
       return c.html(
         '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cartoon unavailable</title><body style="font:20px system-ui;background:#faf6eb;color:#173e35;padding:12vw"><h1>This cartoon has gone home for the holidays.</h1><p>Its link may have expired or its creator may have removed it.</p><a href="/">Make your own cartoon</a></body></html>',
         404,

@@ -126,6 +126,22 @@ test('persistent setup, scoped descriptions, one generation job, private sources
   expect(html).toContain(`content="${url}/poster"`);
   expect(html).not.toContain(cast[0].description);
   expect(html).not.toContain('sourceAssetId');
+  expect(
+    (
+      await foreign.post(`${url}/events`, {
+        headers: { Origin: origin },
+        data: { name: 'recipient_playback_started' },
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await foreign.post(`${url}/events`, {
+        headers: { Origin: 'https://evil.test' },
+        data: { name: 'recipient_playback_started' },
+      })
+    ).status(),
+  ).toBe(403);
   const video = await foreign.get(`${url}/media`, { headers: { Range: 'bytes=0-99' } });
   expect(video.status()).toBe(206);
   expect((await video.body()).length).toBe(100);

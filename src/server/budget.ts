@@ -9,6 +9,9 @@ export function realReady(env: AppEnv) {
     env.PAID_GENERATION_ENABLED !== 'true' ||
     !env.FAL_KEY ||
     !env.ASSET_SIGNING_SECRET ||
+    env.ASSET_SIGNING_SECRET.length < 32 ||
+    env.IMAGE_MODEL !== 'openai/gpt-image-2.6/flare/edit' ||
+    env.VIDEO_MODEL !== 'minimax/h3-max/reference-to-video' ||
     !env.TURNSTILE_SECRET ||
     !('AI' in env) ||
     !('RENDERER' in env) ||

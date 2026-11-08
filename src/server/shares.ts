@@ -1,7 +1,8 @@
+import { z } from 'zod';
 import { Hono } from 'hono';
 import type { AppEnv } from './env';
 import { signingKey } from './env';
-import { owned } from './auth';
+import { owned, validateOrigin } from './auth';
 import { statement, recordEvent, type AssetRow } from './db';
 import { sha256, sign } from './crypto';
 import { AppError } from './errors';
@@ -57,10 +58,20 @@ shares.get('/s/:token', async (c) => {
   const path = `/s/${c.req.param('token')}`;
   const url = escape(c.env.APP_ORIGIN + path);
   const title = escape(`${getPreset(s.preset).title} · Family Christmas Cartoon`);
-  await recordEvent(c.env, 'share_page_viewed', s.project_id, s.preset);
+  await recordEvent(c.env, 'share_page_requested', s.project_id, s.preset);
   return c.html(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><meta property="og:type" content="video.other"><meta property="og:title" content="${title}"><meta property="og:description" content="Familiar faces. A little holiday chaos. A goofy Christmas cartoon made to share."><meta property="og:image" content="${url}/poster"><meta property="og:url" content="${url}"><meta name="twitter:card" content="summary_large_image"><style>body{margin:0;background:#faf6eb;color:#173e35;font-family:system-ui}main{max-width:960px;margin:7vh auto;padding:24px;text-align:center}h1{font-family:Georgia,serif;font-size:clamp(2rem,5vw,3.5rem)}video{display:block;width:100%;border-radius:20px;background:#173e35}a{display:inline-block;padding:16px 26px;margin:18px 8px;border-radius:40px;background:#b52e38;color:white;text-decoration:none;font-weight:700}p{line-height:1.6}small{display:block}a:focus-visible{outline:3px solid #173e35;outline-offset:4px}</style></head><body><main><p>FAMILY CHRISTMAS CARTOON</p><h1>A little holiday chaos.<br>A lot of familiar faces.</h1>${c.env.MODE === 'mock' ? '<p><strong>Demo fixture · Illustrative animation, not generated from the uploaded photos.</strong></p>' : ''}<video controls playsinline preload="metadata" poster="${path}/poster" src="${path}/media"></video><a href="/?from=share">Make your own cartoon ↗</a><a href="${path}/media?download=1" download>Download video</a><small>Unlisted · Anyone with this link can watch.</small><p>Available until ${escape(new Date(s.expires_at).toLocaleDateString('en-CA', { timeZone: 'America/Toronto' }))}.</p></main></body></html>`,
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><meta property="og:type" content="video.other"><meta property="og:title" content="${title}"><meta property="og:description" content="Familiar faces. A little holiday chaos. A goofy Christmas cartoon made to share."><meta property="og:image" content="${url}/poster"><meta property="og:url" content="${url}"><meta name="twitter:card" content="summary_large_image"><style>body{margin:0;background:#faf6eb;color:#173e35;font-family:system-ui}main{max-width:960px;margin:7vh auto;padding:24px;text-align:center}h1{font-family:Georgia,serif;font-size:clamp(2rem,5vw,3.5rem)}video{display:block;width:100%;border-radius:20px;background:#173e35}a{display:inline-block;padding:16px 26px;margin:18px 8px;border-radius:40px;background:#b52e38;color:white;text-decoration:none;font-weight:700}p{line-height:1.6}small{display:block}a:focus-visible{outline:3px solid #173e35;outline-offset:4px}</style></head><body><main><p>FAMILY CHRISTMAS CARTOON</p><h1>A little holiday chaos.<br>A lot of familiar faces.</h1>${c.env.MODE === 'mock' ? '<p><strong>Demo fixture · Illustrative animation, not generated from the uploaded photos.</strong></p>' : ''}<video controls playsinline preload="metadata" poster="${path}/poster" src="${path}/media"></video><a id="make-own" href="/?from=share">Make your own cartoon ↗</a><a href="${path}/media?download=1" download>Download video</a><small>Unlisted · Anyone with this link can watch.</small><p>Available until ${escape(new Date(s.expires_at).toLocaleDateString('en-CA', { timeZone: 'America/Toronto' }))}.</p></main><script>const report=(name)=>navigator.sendBeacon('${path}/events',JSON.stringify({name}));document.querySelector('video').addEventListener('play',()=>report('recipient_playback_started'),{once:true});document.querySelector('#make-own').addEventListener('click',()=>report('share_create_clicked'));</script></body></html>`,
   );
+});
+shares.post('/s/:token/events', async (c) => {
+  validateOrigin(c);
+  const s = await lookup(c.env, c.req.param('token'));
+  const data = z
+    .object({ name: z.enum(['recipient_playback_started', 'share_create_clicked']) })
+    .strict()
+    .parse(await c.req.json());
+  await recordEvent(c.env, data.name, s.project_id, s.preset);
+  return c.json({ ok: true });
 });
 for (const kind of ['media', 'poster'] as const)
   shares.get(`/s/:token/${kind}`, async (c) => {

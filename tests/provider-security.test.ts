@@ -1,5 +1,6 @@
-import { it, expect } from 'vitest';
-import { verifyFalSignature, outputUrl, falInput } from '../src/server/fal';
+import type { AppEnv } from '../src/server/env';
+import { it, expect, vi } from 'vitest';
+import { verifyFalSignature, outputUrl, falInput, FalQueue } from '../src/server/fal';
 import { sign, verifyHmac, sha256 } from '../src/server/crypto';
 import { validateDescriptions } from '../src/server/descriptions';
 it('verifies authentic Ed25519 callbacks and rejects tampering, wrong accounts and stale deliveries', async () => {
@@ -77,4 +78,29 @@ it('validates exact requested description IDs, length, variety and editable plai
     ids.map((id) => ({ id, description: 'x'.repeat(501) })),
   ])
     expect(() => validateDescriptions({ descriptions }, ids)).toThrow();
+});
+
+it('keeps provider execution metrics distinct from observed queue timestamps', async () => {
+  const fetchMock = vi.spyOn(globalThis, 'fetch');
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ status: 'IN_PROGRESS' })));
+  const queue = new FalQueue({ FAL_KEY: 'unused-test-key' } as AppEnv);
+  try {
+    expect(await queue.poll('minimax/h3-max/reference-to-video', 'known-request')).toMatchObject({
+      state: 'pending',
+      providerState: 'IN_PROGRESS',
+    });
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: 'COMPLETED', metrics: { inference_time: 12.5 } })),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ video: { url: 'https://v3.fal.media/test.mp4' } })),
+    );
+    expect(await queue.poll('minimax/h3-max/reference-to-video', 'known-request')).toMatchObject({
+      state: 'completed',
+      providerState: 'COMPLETED',
+      inferenceMs: 12500,
+    });
+  } finally {
+    fetchMock.mockRestore();
+  }
 });
